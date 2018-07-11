@@ -5,6 +5,7 @@ given kinetic model.
 import platform
 import numpy as np, scipy
 from matplotlib import pyplot as plt, rcParams
+import kinmodel
 
 # Parameters and settings for plots.
 COLORS = ['b','g','r','c','m','y','k']
@@ -38,13 +39,13 @@ def get_raw_data(model, data_filename):
         raw_data = []       # List of lists of experimental concentrations
         total_points = 0         # Total number of experimental points
         for line in datafile:
-            curline = line.replace("\n", "").split(',')
+            curline = line.replace("\n", "").split(",")
             ts.append(float(curline[0]))
             concs = []
 
             for n in range(model.num_concs):
                 if n+1 < len(curline):
-                    if curline[n+1] != '':
+                    if curline[n+1] != "":
                         total_points += 1
                         concs.append(float(curline[n+1]))
                     else:
@@ -83,6 +84,7 @@ def prepare_text(model, fit_ks, fit_concs, reg_info, num_points, max_time,
     text += f"Python version: {platform.python_version()}\n"
     text += f"Numpy version: {np.version.version}\n"
     text += f"Scipy version: {scipy.version.version}\n"
+    text += f"kinmodel version: {kinmodel.__version__}\n"
     text += "\n"
 
     text += "Model\n"
@@ -181,8 +183,8 @@ def generate_plot(model, fit_ks, fit_concs, num_points, max_time, exp_times,
     plt.ylim(ymin=0)
     plt.xlim(xmin=0, xmax=smooth_ts_plot[-1])
 
-    plt.xlabel('t (min)')
-    plt.ylabel('C (mM)')
+    plt.xlabel("t (min)")
+    plt.ylabel("C (mM)")
 
     plt.tight_layout()
 
@@ -208,7 +210,7 @@ def fit_and_output(model, data_filename,
         text_output_points, max(exp_times)*text_time_extension_factor, 
         data_filename, text_full_output)
     if text_output:
-        with open(f"{data_filename}_{model.name}.txt", 'w') as write_file:
+        with open(f"{data_filename}_{model.name}.txt", 'w', encoding='utf-8') as write_file:
             print(output_text, file=write_file)
     else:
         print(output_text)

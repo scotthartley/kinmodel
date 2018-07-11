@@ -4,8 +4,10 @@ def readme():
     with open("README.rst") as file:
         return file.read()
 
+exec(open('kinmodel/_version.py').read())
+
 setup(name='kinmodel',
-      version='0.9',
+      version=__version__,
       description='Chemical kinetic model fitting and simulation',
       long_description=readme(),
       author='Scott Hartley',

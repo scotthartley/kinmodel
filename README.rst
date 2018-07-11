@@ -36,8 +36,9 @@ different species can be visualized separately. There are a number of
 command line options. Help is available via ``fitkinetics.py -h``.
 
 Some models are included as part of the default installation, but new
-ones can be defined in a separate dictionary and then loaded with the
-``-m filename.py`` option. This new file should have the following form:
+ones can be defined in a separate dictionary stored in filename.py and
+then loaded with the ``-m filename`` option. This new file should have
+the following form:
 
 ::
 

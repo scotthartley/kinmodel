@@ -17,7 +17,7 @@ The package can be installed as usual with pip.
 
 At this point, primary interaction with kinmodel will probably be through the fit_kinetics.py executable. Basic usage is of the form `fitkinetics.py model_name exp_data.csv`, where `model_name` defines the kinetic model to be applied and `exp_data.csv` is a csv file containing experimental concentration vs time data for relevant species. The program will output a txt file of the fit parameters and best-fit curves and a pdf with the plots. At present it produces two plots so different species can be visualized separately. There are a number of command line options. Help is available via `fitkinetics.py -h`.
 
-Some models are included as part of the default installation, but new ones can be defined in a separate dictionary and then loaded with the `-m filename.py` option. This new file should have the following form:
+Some models are included as part of the default installation, but new ones can be defined in a separate dictionary stored in filename.py and then loaded with the `-m filename` option. This new file should have the following form:
 
 ```
 from kinmodel.KineticModel import KineticModel

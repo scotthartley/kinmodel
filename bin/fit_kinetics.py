@@ -21,7 +21,7 @@ parser.add_argument("model_name",
 parser.add_argument("filename",
     help="CSV file to process")
 parser.add_argument("-m", "--extra_models",
-    help="Filename of module containing additional models; must be in working directory",
+    help="Filename of module containing additional models; must be in working directory, omit .py extension",
     default=None)
 parser.add_argument("-tp", "--text_output_points",
     help="Number of points for curves in text output (not pdf) (default = 3000)",

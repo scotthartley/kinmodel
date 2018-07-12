@@ -20,8 +20,8 @@ parser.add_argument("model_name",
     help="Name of model to apply")
 parser.add_argument("filename",
     help="CSV file to process")
-parser.add_argument("-m", "--extra_models",
-    help="Filename of module containing additional models; must be in working directory, omit .py extension",
+parser.add_argument("-m", "--new_model",
+    help="Filename of module containing additional model; must be in working directory, omit .py extension",
     default=None)
 parser.add_argument("-tp", "--text_output_points",
     help="Number of points for curves in text output (not pdf) (default = 3000)",
@@ -51,9 +51,9 @@ args = parser.parse_args()
 
 sys.path.append(os.getcwd())
 
-if args.extra_models:
-    extra_models = __import__(args.extra_models).models
-    models = {**kinmodel.default_models, **extra_models}
+if args.new_model:
+    new_model = __import__(args.new_model).model
+    models = {**kinmodel.default_models, **{new_model.name: new_model}}
 else:    
     models = kinmodel.default_models
 

@@ -42,7 +42,8 @@ the following form:
 
 ::
 
-   from kinmodel.KineticModel import KineticModel
+   import textwrap
+   from kinmodel import KineticModel
 
    def test_model(concs, t, *ks):
        S1, S2, S3 = concs
@@ -52,26 +53,22 @@ the following form:
                 + k1*S1 - k2*S2 - k3*S3,
                 + k3*S2 ]
 
-   models = {
-       'test_model': KineticModel(
-           name = "test_model",
-           description = textwrap.dedent("""\
-               Simple kinetic model:
+   model = KineticModel(
+       name = "test_model",
+       description = textwrap.dedent("""\
+           Simple kinetic model:
 
-                   S1 <==> S2 (k1, k2)
-                   S2 ---> S3 (k3)"""),
-           kin_sys = test_model,
-           ks_guesses = [0.02, 0.02, 0.1],
-           starting_concs_guesses = [20],
-           starting_concs_constant = [0, 0],
-           parameter_names = ["k1", "k2", "k3", "[S1]0"],
-           legend_names = ["S1", "S2", "S3"],
-           top_plot = [1],
-           bottom_plot = [2, 3],
-           sort_order = [1, 2, 3],
-           int_eqn = [
-           ],
-           int_eqn_desc = [
-           ]
-           ),
-   }
+               S1 <==> S2 (k1, k2)
+               S2 ---> S3 (k3)"""),
+       kin_sys = test_model,
+       ks_guesses = [0.02, 0.02, 0.1],
+       starting_concs_guesses = [20],
+       starting_concs_constant = [0, 0],
+       parameter_names = ["k1", "k2", "k3", "[S1]0"],
+       legend_names = ["S1", "S2", "S3"],
+       top_plot = [1],
+       bottom_plot = [2, 3],
+       sort_order = [1, 2, 3],
+       int_eqn = [],
+       int_eqn_desc = []
+       )

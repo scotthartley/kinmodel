@@ -23,6 +23,9 @@ parser.add_argument("filename",
 parser.add_argument("-m", "--new_model",
     help="Filename of module containing additional model; must be in working directory, omit .py extension",
     default=None)
+parser.add_argument("-b", "--bootstrap_iterations",
+    help="Number of bootstrapping iterations to perform for parameter errors (default=100, set to 0 to disable)",
+    type=int, default=100)
 parser.add_argument("-tp", "--text_output_points",
     help="Number of points for curves in text output (not pdf) (default = 3000)",
     type=int, default=3000)
@@ -61,6 +64,7 @@ try:
     model = models[args.model_name]
 except KeyError:
     print(f'"{args.model_name}" is not a valid model.')
+    print(", ".join(a for a in models), "are currently available.")
     sys.exit(1)
 
 kinmodel.fit_and_output(
@@ -73,4 +77,5 @@ kinmodel.fit_and_output(
     plot_time_extension_factor = args.plot_expansion_factor,
     plot_output = not args.no_plot,
     text_full_output = not args.summary_output,
-    monitor = args.verbose)
+    monitor = args.verbose,
+    bootstrap_iterations=args.bootstrap_iterations)

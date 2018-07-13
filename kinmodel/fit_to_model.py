@@ -25,19 +25,18 @@ np.set_printoptions(precision=2,suppress=True)
 
 
 def get_raw_data(model, data_filename):
-    """Load data from file, formated as a csv file. The file is assumed
-    to include a header row, and the order of columns must match that
-    specified by the model (model.sort_order).
+    """Load data from file, formated as a csv file. 
 
-    Returns the experimental times (np array), data (np array), and
-    total number of data points (int)
+    The file is assumed to include a header row, and the order of
+    columns must match that specified by the model (model.sort_order).
+
+    Returns the experimental times (np array) and data (np array).
 
     """
     with open(data_filename) as datafile:
         next(datafile)  # Skip header
         ts = []         # List of experimental times
         raw_data = []       # List of lists of experimental concentrations
-        total_points = 0         # Total number of experimental points
         for line in datafile:
             curline = line.replace("\n", "").split(",")
             ts.append(float(curline[0]))
@@ -46,7 +45,6 @@ def get_raw_data(model, data_filename):
             for n in range(model.num_concs):
                 if n+1 < len(curline):
                     if curline[n+1] != "":
-                        total_points += 1
                         concs.append(float(curline[n+1]))
                     else:
                         concs.append(np.nan)
@@ -61,20 +59,22 @@ def get_raw_data(model, data_filename):
         for n in range(model.num_concs):
             sorted_data[:,n] = unsorted_data[:,model.sort_order[n]]
 
-    return np.array(ts), sorted_data, total_points
+    return np.array(ts), sorted_data
 
 
-def prepare_text(model, fit_ks, fit_concs, reg_info, num_points, max_time, 
-    filename, full_simulation=True):
-    """Generates the output text. The total time (max_time) and number
-    of points (numpoints) for the output simulation must be specified.
-    Output of the full simulation can be controlled.
+def prepare_text(model, reg_info, num_points, max_time, filename,
+    full_simulation=True):
+    """Generates the output text.
+
+    The total time (max_time) and number of points (numpoints) for the
+    output simulation must be specified. Output of the full simulation
+    can be controlled.
 
     """
-    smooth_ts_out, smooth_curves_out, integrals = model.simulate(fit_ks, 
-        fit_concs, num_points, max_time)
+    smooth_ts_out, smooth_curves_out, integrals = model.simulate(reg_info['fit_ks'], 
+        reg_info['fit_concs'], num_points, max_time)
 
-    all_params = fit_ks + fit_concs
+    all_params = reg_info['fit_ks'] + reg_info['fit_concs']
 
     title = f"Regression results for file \"{filename}\"" 
     text = title + "\n"
@@ -95,8 +95,27 @@ def prepare_text(model, fit_ks, fit_concs, reg_info, num_points, max_time,
 
     text += "Optimized parameters\n"
     text += "--------------------\n"
-    for n in range(len(all_params)):
-        text += f"{model.parameter_names[n]:>{model.len_params}} = {all_params[n]:+5e}\n"
+    if 'boot_stddevs' in reg_info:
+        for n in range(len(all_params)):
+            text += f"{model.parameter_names[n]:>{model.len_params}} = {all_params[n]:+5e} ± {reg_info['boot_stddevs'][n]:.1e}\n"
+        text += f"(Errors are ±1σ from bootstrapping with {reg_info['boot_num']} permutations.)\n"
+    else:
+        for n in range(len(all_params)):
+            text += f"{model.parameter_names[n]:>{model.len_params}} = {all_params[n]:+5e}\n"
+    text += "\n"
+
+    text += "Covariance matrix:\n"
+    for n in reg_info['pcov']:
+        text += " ".join(f"{m:+.2e}" for m in n) + "\n"
+    text += "\n"
+    
+    text += "Parameter σ from covariance matrix (√diagonal):\n"
+    text += " ".join(f"{m:+.2e}" for m in reg_info['cov_errors']) + "\n"
+    text += "\n"
+
+    text += "Correlation matrix:\n"
+    for n in reg_info['corr']:
+        text += " ".join(f"{m:+.2f}" for m in n) + "\n"
     text += "\n"
 
     if integrals:
@@ -114,8 +133,8 @@ def prepare_text(model, fit_ks, fit_concs, reg_info, num_points, max_time,
     text += f"Msg: {reg_info['message']}\n"
 
     text += f"Total points (dof): {reg_info['total_points']} ({reg_info['dof']})\n"
-    text += f"Sum square errors: {reg_info['sse']}\n"
-    text += f"Std Deviation of errors: {reg_info['sde']}\n"
+    text += f"Sum square residuals: {reg_info['ssr']}\n"
+    text += f"RMSD: {reg_info['rmsd']}\n"
     text += "\n"
 
     if full_simulation:
@@ -130,15 +149,17 @@ def prepare_text(model, fit_ks, fit_concs, reg_info, num_points, max_time,
     return text
 
 
-def generate_plot(model, fit_ks, fit_concs, num_points, max_time, exp_times, 
+def generate_plot(model, reg_info, num_points, max_time, exp_times, 
     exp_concs, output_filename):
-    """Generates the output plot. Number of points and maximum time must be
-    specified. Saved as pdf to output_filename.
+    """Generates the output plot.
+
+    Number of points and maximum time must be specified. Saved as pdf to
+    output_filename.
 
     """
-    all_params = fit_ks + fit_concs
-    smooth_ts_plot, smooth_curves_plot, _ = model.simulate(fit_ks, 
-        fit_concs, num_points, max_time, integrate=False)
+    all_params = reg_info['fit_ks'] + reg_info['fit_concs']
+    smooth_ts_plot, smooth_curves_plot, _ = model.simulate(reg_info['fit_ks'], 
+        reg_info['fit_concs'], num_points, max_time, integrate=False)
 
     # Plot the data and save as pdf.
     plt.subplot(211)
@@ -194,19 +215,17 @@ def generate_plot(model, fit_ks, fit_concs, num_points, max_time, exp_times,
 def fit_and_output(model, data_filename,
     text_output_points=3000, text_time_extension_factor=3.0, text_output=True, 
     plot_output_points=1000, plot_time_extension_factor=1.1, plot_output=True,
-    text_full_output=True, monitor=False):
+    text_full_output=True, monitor=False, bootstrap_iterations=100):
     """Carry out the fit of the model and output the data.
 
     """
-    # Get data from input file.
-    exp_times, exp_concs, total_points = get_raw_data(model, data_filename)
+    exp_times, exp_concs = get_raw_data(model, data_filename)
 
-    # Carry out the fit.
-    fit_ks, fit_concs, reg_info = model.fit_to_model(exp_times, exp_concs, 
-        total_points, monitor=monitor)
+    reg_info = model.fit_to_model(exp_times, exp_concs, monitor=monitor, 
+        N_boot=bootstrap_iterations)
 
     # Prepare output text and either save to a file or print to stdout.
-    output_text = prepare_text(model, fit_ks, fit_concs, reg_info, 
+    output_text = prepare_text(model, reg_info, 
         text_output_points, max(exp_times)*text_time_extension_factor, 
         data_filename, text_full_output)
     if text_output:
@@ -215,8 +234,7 @@ def fit_and_output(model, data_filename,
     else:
         print(output_text)
 
-    # Generate plot.
     if plot_output:
-        generate_plot(model, fit_ks, fit_concs, plot_output_points, 
+        generate_plot(model, reg_info, plot_output_points, 
             max(exp_times)*plot_time_extension_factor, exp_times, exp_concs, 
             data_filename + f"_{model.name}.pdf")

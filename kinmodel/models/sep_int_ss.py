@@ -1,5 +1,5 @@
 import textwrap
-from ..kineticmodel import KineticModel
+from ..KineticModel import KineticModel
 
 def sep_int_ss(concs, t, *ks):
     Ac, E, U, An = concs

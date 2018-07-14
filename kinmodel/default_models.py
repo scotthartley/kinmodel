@@ -3,9 +3,9 @@ default_models dictionary.
 
 """
 import pkgutil, os, importlib
-from . import models
+import kinmodel.models
 
-pkgpath = os.path.dirname(models.__file__)
+pkgpath = os.path.dirname(kinmodel.models.__file__)
 filenames = [n for _, n, _ in pkgutil.iter_modules([pkgpath])]
 
 default_models = {}

@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 def readme():
     with open("README.rst") as file:
@@ -14,7 +14,7 @@ setup(name='kinmodel',
       author_email='scott.hartley@miamioh.edu',
       url='https://hartleygroup.org',
       license='MIT',
-      packages=['kinmodel'],
+      packages=find_packages(),
       scripts=['bin/fit_kinetics.py'],
       install_requires=['numpy', 'scipy', 'matplotlib'],
       python_requires=">=3.6",

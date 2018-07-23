@@ -34,6 +34,6 @@ model = KineticModel(
         lambda cs, ks: ks[2]*cs[3],
     ],
     int_eqn_desc = [
-        "k_2*An",
+        "k2*An",
     ]
     )

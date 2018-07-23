@@ -1,15 +1,20 @@
 """Interfaces with the KineticModel class to fit experimental data to a
-given kinetic model.
+given kinetic model and output the results.
 
 """
 import platform
 import numpy as np, scipy
 from matplotlib import pyplot as plt, rcParams
 import kinmodel
+from .Dataset import Dataset
 
 # Parameters and settings for plots.
 COLORS = ['b','g','r','c','m','y','k']
 MARKER_SIZE = 6
+FIGURE_SIZE_1 = (2.2, 1.9)
+FIGURE_SIZE_2 = (2.2, 3.5)
+YLABEL = "C"
+XLABEL = "t"
 rcParams['font.size'] = 6
 rcParams['font.family'] = 'sans-serif'
 rcParams['font.sans-serif'] = ['Arial']
@@ -17,66 +22,55 @@ rcParams['lines.linewidth'] = 0.5
 rcParams['axes.linewidth'] = 0.5
 rcParams['legend.frameon'] = False
 rcParams['legend.fontsize'] = 6
-plt.figure(figsize=(2.2,3.5))
 
 # Prevent line breaking and format numbers from np
 np.set_printoptions(linewidth=np.nan)
 np.set_printoptions(precision=2,suppress=True)
 
 
-def get_raw_data(model, data_filename):
-    """Load data from file, formated as a csv file. 
-
-    The file is assumed to include a header row, and the order of
-    columns must match that specified by the model (model.sort_order).
-
-    Returns the experimental times (np array) and data (np array).
-
-    """
-    with open(data_filename) as datafile:
-        next(datafile)  # Skip header
-        ts = []         # List of experimental times
-        raw_data = []       # List of lists of experimental concentrations
-        for line in datafile:
-            curline = line.replace("\n", "").split(",")
-            ts.append(float(curline[0]))
-            concs = []
-
-            for n in range(model.num_concs):
-                if n+1 < len(curline):
-                    if curline[n+1] != "":
-                        concs.append(float(curline[n+1]))
-                    else:
-                        concs.append(np.nan)
-                else:
-                    concs.append(np.nan)
-
-            raw_data.append(concs)
-
-        unsorted_data = np.array(raw_data)
-
-        sorted_data = np.empty_like(unsorted_data)
-        for n in range(model.num_concs):
-            sorted_data[:,n] = unsorted_data[:,model.sort_order[n]]
-
-    return np.array(ts), sorted_data
-
-
-def prepare_text(model, reg_info, num_points, max_time, filename,
-    full_simulation=True):
+def prepare_text(model, reg_info, dataset_n, num_points, time_exp_factor=1.1, 
+        filename="", full_simulation=True, more_stats=False):
     """Generates the output text.
 
-    The total time (max_time) and number of points (numpoints) for the
-    output simulation must be specified. Output of the full simulation
-    can be controlled.
+    The number of points (num_points) for the output simulation and
+    integrals must be specified.
 
     """
-    smooth_ts_out, smooth_curves_out, integrals = model.simulate(reg_info['fit_ks'], 
-        reg_info['fit_concs'], num_points, max_time)
+    smooth_ts_out, smooth_curves_out, integrals = model.simulate(
+            reg_info['fit_ks'], 
+            reg_info['fit_concs'][dataset_n], 
+            num_points, 
+            time_exp_factor*max(reg_info['dataset_times'][dataset_n]))
 
-    all_params = reg_info['fit_ks'] + reg_info['fit_concs']
+    num_ks = len(reg_info['fit_ks'])
+    num_concs = len(reg_info['fit_concs'][dataset_n])
+    # Starting index for dataset-specific concentration parameters.
+    conc_start_index = num_ks + num_concs*dataset_n
+    
+    dataset_params = reg_info['fit_ks'] + reg_info['fit_concs'][dataset_n]
 
-    title = f"Regression results for file \"{filename}\"" 
+    cov_stddevs = (reg_info['cov_errors'][:num_ks].tolist() 
+            + reg_info['cov_errors'][conc_start_index:conc_start_index+num_concs].tolist())
+    if 'boot_stddevs' in reg_info:
+        boot_stddevs = (reg_info['boot_stddevs'][:num_ks] 
+                + reg_info['boot_stddevs'][conc_start_index:conc_start_index+num_concs])
+    else:
+        boot_stddevs = None
+
+    # List of all parameter names, for labeling matrices with all fit
+    # parameters included (not just the ones specific to this dataset).
+    all_parameter_names = model.parameter_names[:num_ks]
+    all_parameter_names += ['']*num_concs*dataset_n
+    all_parameter_names += model.parameter_names[num_ks:]
+    all_parameter_names += ['']*num_concs*(reg_info['num_datasets']-dataset_n-1)
+
+    if reg_info['dataset_names'][dataset_n]:
+        title = (f"Regression results for dataset "
+                f"{reg_info['dataset_names'][dataset_n]} "
+                f"from file \"{filename}\"")
+    else:
+        title = f"Regression results for file \"{filename}\"" 
+
     text = title + "\n"
     text += "="*len(title) + "\n"
     text += "\n"
@@ -95,27 +89,16 @@ def prepare_text(model, reg_info, num_points, max_time, filename,
 
     text += "Optimized parameters\n"
     text += "--------------------\n"
-    if 'boot_stddevs' in reg_info:
-        for n in range(len(all_params)):
-            text += f"{model.parameter_names[n]:>{model.len_params}} = {all_params[n]:+5e} ± {reg_info['boot_stddevs'][n]:.1e}\n"
-        text += f"(Errors are ±1σ from bootstrapping with {reg_info['boot_num']} permutations.)\n"
+    if boot_stddevs:
+        for n in range(len(dataset_params)):
+            text += (f"{model.parameter_names[n]:>{model.len_params}} "
+                    f"= {dataset_params[n]:+5e} ± {boot_stddevs[n]:.1e}\n")
+        text += (f"(Errors are ±1σ from bootstrapping with "
+                f"{reg_info['boot_num']} permutations.)\n")
     else:
-        for n in range(len(all_params)):
-            text += f"{model.parameter_names[n]:>{model.len_params}} = {all_params[n]:+5e}\n"
-    text += "\n"
-
-    text += "Covariance matrix:\n"
-    for n in reg_info['pcov']:
-        text += " ".join(f"{m:+.2e}" for m in n) + "\n"
-    text += "\n"
-    
-    text += "Parameter σ from covariance matrix (√diagonal):\n"
-    text += " ".join(f"{m:+.2e}" for m in reg_info['cov_errors']) + "\n"
-    text += "\n"
-
-    text += "Correlation matrix:\n"
-    for n in reg_info['corr']:
-        text += " ".join(f"{m:+.2f}" for m in n) + "\n"
+        for n in range(len(dataset_params)):
+            text += (f"{model.parameter_names[n]:>{model.len_params}} "
+                    f"= {dataset_params[n]:+5e}\n")
     text += "\n"
 
     if integrals:
@@ -123,19 +106,37 @@ def prepare_text(model, reg_info, num_points, max_time, filename,
         text += "---------\n"
         for n in integrals:
             integral_label = "∫ "+n+" dt"
-            text += f"{integral_label:>{model.len_int_eqn_desc+5}} = {integrals[n]:+5e}\n"
+            text += (f"{integral_label:>{model.len_int_eqn_desc+5}} "
+                    f"= {integrals[n]:+5e}\n")
         text += "\n"
 
     text += "Regression info\n"
     text += "---------------\n"
 
     text += f"Success: {reg_info['success']}\n"
-    text += f"Msg: {reg_info['message']}\n"
+    text += f"Message: {reg_info['message']}\n"
 
     text += f"Total points (dof): {reg_info['total_points']} ({reg_info['dof']})\n"
-    text += f"Sum square residuals: {reg_info['ssr']}\n"
-    text += f"RMSD: {reg_info['rmsd']}\n"
+    text += f"Sum square residuals (unweighted): {reg_info['pure_ssr']:.2e}\n"
+    text += f"RMSD (unweighted): {reg_info['pure_rmsd']:.2e}\n"
     text += "\n"
+
+    if more_stats:
+        text += "Covariance matrix:\n"
+        for n in range(reg_info['total_params']):
+            text += (f"{all_parameter_names[n]:>{model.len_params}} " 
+                    + " ".join(f"{m:+.2e}" for m in reg_info['pcov'][n]) + "\n")
+        text += "\n"
+        
+        text += "Parameter σ from covariance matrix (√diagonal):\n"
+        text += " ".join(f"{m:+.1e}" for m in cov_stddevs) + "\n"
+        text += "\n"
+
+        text += "Correlation matrix:\n"
+        for n in range(reg_info['total_params']):
+            text += (f"{all_parameter_names[n]:>{model.len_params}} " 
+                    + " ".join(f"{m:+.2f}" for m in reg_info['corr'][n]) + "\n")
+        text += "\n"
 
     if full_simulation:
         text += "Results\n"
@@ -149,92 +150,110 @@ def prepare_text(model, reg_info, num_points, max_time, filename,
     return text
 
 
-def generate_plot(model, reg_info, num_points, max_time, exp_times, 
-    exp_concs, output_filename):
+def generate_plot(model, reg_info, dataset_n, num_points, time_exp_factor, 
+            output_filename):
     """Generates the output plot.
 
-    Number of points and maximum time must be specified. Saved as pdf to
-    output_filename.
+    Number of points must be specified. Saved as pdf to output_filename.
 
     """
-    all_params = reg_info['fit_ks'] + reg_info['fit_concs']
+    dataset_params = reg_info['fit_ks'] + reg_info['fit_concs'][dataset_n]
+    max_time = max(reg_info['dataset_times'][dataset_n])*time_exp_factor
+
     smooth_ts_plot, smooth_curves_plot, _ = model.simulate(reg_info['fit_ks'], 
-        reg_info['fit_concs'], num_points, max_time, integrate=False)
+            reg_info['fit_concs'][dataset_n], 
+            num_points, max_time, integrate=False)
 
-    # Plot the data and save as pdf.
-    plt.subplot(211)
-    col = 0
-    for n in [np.array(exp_concs).T[n] for n in model.top_plot]:
-        plt.scatter(exp_times, n, c=COLORS[col], s=MARKER_SIZE, linewidths=0)
-        col += 1
+    if model.top_plot:
+        plt.figure(figsize=FIGURE_SIZE_2)
+    else:
+        plt.figure(figsize=FIGURE_SIZE_1)
 
-    col = 0
-    for n in [smooth_curves_plot.T[n] for n in model.top_plot]:
-        plt.plot(smooth_ts_plot, n, COLORS[col] + '-')
-        col += 1
+    if model.top_plot:
+        plt.subplot(211)
+        col = 0
+        for n in ([np.array(reg_info['dataset_concs'][dataset_n]).T[m] 
+                for m in model.top_plot]):
+            plt.scatter(reg_info['dataset_times'][dataset_n], n, c=COLORS[col], 
+                    s=MARKER_SIZE, linewidths=0)
+            col += 1
 
-    plt.legend([model.legend_names[n] for n in model.top_plot], loc=4)
+        col = 0
+        for n in [smooth_curves_plot.T[m] for m in model.top_plot]:
+            plt.plot(smooth_ts_plot, n, COLORS[col] + '-')
+            col += 1
 
-    plt.ylim(ymin=0)
-    plt.xlim(xmin=0, xmax=smooth_ts_plot[-1])
+        plt.legend([model.legend_names[n] for n in model.top_plot], loc=4)
 
-    plt.ylabel("C (mM)")
+        plt.ylim(ymin=0)
+        plt.xlim(xmin=0, xmax=smooth_ts_plot[-1])
 
-    # Print parameters on plot.
-    pars_to_print = ""
-    for n in range(len(all_params)):
-        pars_to_print += "{} = {:.2e}\n".format(model.parameter_names[n], 
-            all_params[n])
-    plt.text(0.5, 0.2, pars_to_print, transform=plt.gca().transAxes, fontsize=6)
+        plt.ylabel(YLABEL)
+
+    if model.bottom_plot:
+        if model.top_plot:
+            plt.subplot(212)
+        else:
+            plt.subplot(111)
+
+        col = 0
+        for n in ([np.array(reg_info['dataset_concs'][dataset_n]).T[m] 
+                for m in model.bottom_plot]):
+            plt.scatter(reg_info['dataset_times'][dataset_n], n, c=COLORS[col], 
+                    s=MARKER_SIZE, linewidths=0, zorder=2)
+            col += 1
+
+        col = 0
+        for n in [smooth_curves_plot.T[n] for n in model.bottom_plot]:
+            plt.plot(smooth_ts_plot, n, COLORS[col] + '-', zorder=3)
+            col += 1
+
+        plt.legend([model.legend_names[n] for n in model.bottom_plot], loc=2)
+
+        plt.ylim(ymin=0)
+        plt.xlim(xmin=0, xmax=smooth_ts_plot[-1])
+
+        plt.xlabel(XLABEL)
+        plt.ylabel(YLABEL)
+
+        # Print parameters on plot.
+        pars_to_print = ""
+        for n in range(len(dataset_params)):
+            pars_to_print += "{} = {:.2e}\n".format(model.parameter_names[n], 
+                    dataset_params[n])
+        plt.text(0.5, 0.2, pars_to_print, transform=plt.gca().transAxes, fontsize=6)
     
-    plt.subplot(212)
-    col = 0
-    for n in [np.array(exp_concs).T[n] for n in model.bottom_plot]:
-        plt.scatter(exp_times, n, c=COLORS[col], s=MARKER_SIZE, 
-            linewidths=0, zorder=2)
-        col += 1
-
-    col = 0
-    for n in [smooth_curves_plot.T[n] for n in model.bottom_plot]:
-        plt.plot(smooth_ts_plot, n, COLORS[col] + '-', zorder=3)
-        col += 1
-
-    plt.legend([model.legend_names[n] for n in model.bottom_plot], loc=2)
-
-    plt.ylim(ymin=0)
-    plt.xlim(xmin=0, xmax=smooth_ts_plot[-1])
-
-    plt.xlabel("t (min)")
-    plt.ylabel("C (mM)")
-
     plt.tight_layout()
-
     plt.savefig(output_filename)
+    plt.close()
 
 
 def fit_and_output(model, data_filename,
-    text_output_points=3000, text_time_extension_factor=3.0, text_output=True, 
-    plot_output_points=1000, plot_time_extension_factor=1.1, plot_output=True,
-    text_full_output=True, monitor=False, bootstrap_iterations=100):
+            text_output_points=3000, text_time_extension_factor=3.0, 
+            text_output=True, plot_output_points=1000, 
+            plot_time_extension_factor=1.1, plot_output=True, 
+            text_full_output=True, monitor=False, 
+            bootstrap_iterations=100, more_stats=False):
     """Carry out the fit of the model and output the data.
 
     """
-    exp_times, exp_concs = get_raw_data(model, data_filename)
+    datasets = Dataset.read_raw_data(model, data_filename)
 
-    reg_info = model.fit_to_model(exp_times, exp_concs, monitor=monitor, 
+    reg_info = model.fit_to_model(datasets, monitor=monitor, 
         N_boot=bootstrap_iterations)
 
-    # Prepare output text and either save to a file or print to stdout.
-    output_text = prepare_text(model, reg_info, 
-        text_output_points, max(exp_times)*text_time_extension_factor, 
-        data_filename, text_full_output)
-    if text_output:
-        with open(f"{data_filename}_{model.name}.txt", 'w', encoding='utf-8') as write_file:
-            print(output_text, file=write_file)
-    else:
-        print(output_text)
+    for n in range(reg_info['num_datasets']):
+        output_text = prepare_text(model, reg_info, n, text_output_points, 
+            text_time_extension_factor, data_filename, text_full_output, more_stats)
+        if text_output:
+            text_output_filename = f"{data_filename}_{model.name}_{reg_info['dataset_names'][n]}.txt"
+            with open(text_output_filename, 'w', encoding='utf-8') as write_file:
+                print(output_text, file=write_file)
+        else:
+            print(output_text)
 
     if plot_output:
-        generate_plot(model, reg_info, plot_output_points, 
-            max(exp_times)*plot_time_extension_factor, exp_times, exp_concs, 
-            data_filename + f"_{model.name}.pdf")
+        for n in range(reg_info['num_datasets']):
+            plot_output_filename = f"{data_filename}_{model.name}_{reg_info['dataset_names'][n]}.pdf"
+            generate_plot(model, reg_info, n, plot_output_points, 
+                    plot_time_extension_factor, plot_output_filename)

@@ -30,9 +30,15 @@ through the fit_kinetics.py executable. Basic usage is of the form
 ``fitkinetics.py model_name exp_data.csv``, where ``model_name`` defines
 the kinetic model to be applied and ``exp_data.csv`` is a csv file
 containing experimental concentration vs time data for relevant species.
+The csv file can contain multiple experiments that will be fitted
+simultaneously for all rate constants. Experiments are separated by
+title lines that must contain a title in column 1 that cannot be
+interpreted as a number followed by empty cells for the remaining
+columns.
+
 The program will output a txt file of the fit parameters and best-fit
-curves and a pdf with the plots. At present it produces two plots so
-different species can be visualized separately. There are a number of
+curves and a pdf with the plots. At present it produces up to two plots
+so different species can be visualized separately. There are a number of
 command line options. Help is available via ``fitkinetics.py -h``.
 
 Some models are included as part of the default installation, but new
@@ -70,5 +76,5 @@ the following form:
        bottom_plot = [2, 3],
        sort_order = [1, 2, 3],
        int_eqn = [],
-       int_eqn_desc = []
+       int_eqn_desc = [],
        )

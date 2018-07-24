@@ -35,6 +35,12 @@ parser.add_argument("-b", "--bootstrap_iterations",
     help=("Number of bootstrapping iterations to perform for parameter errors "
             "(default=100, set to 0 to disable)"),
     type=int, default=100)
+parser.add_argument("-ci", "--confidence_interval",
+    help=("%% confidence interval to use for bootstrap statistics (default=99)"),
+    type=float, default=99)
+parser.add_argument("-so", "--summary_output",
+    help="Excludes conc vs time data from text output",
+    action='store_true')
 parser.add_argument("-tp", "--text_output_points",
     help="Number of points for curves in text output (not pdf) (default = 3000)",
     type=int, default=3000)
@@ -44,9 +50,6 @@ parser.add_argument("-tf", "--text_expansion_factor",
     type=float, default=3.0)
 parser.add_argument("-ns", "--no_text_save",
     help="Do not save text output (send to stdout instead)",
-    action='store_true')
-parser.add_argument("-so", "--summary_output",
-    help="Excludes conc vs time data from text output",
     action='store_true')
 parser.add_argument("-pp", "--plot_output_points",
     help="Number of points for curves in output (pdf) (default = 1000)",
@@ -61,8 +64,8 @@ parser.add_argument("-np", "--no_plot",
 parser.add_argument("-ms", "--more_stats",
     help="Output covariance/correlation matrices",
     action='store_true')
-parser.add_argument("-v", "--verbose",
-    help=("Verbose output during fit (prints sum square residuals and "
+parser.add_argument("-nv", "--no_verbose",
+    help=("Silence verbose output during fit (prints sum square residuals and "
             "bootstrap progress)"),
     action='store_true')
 args = parser.parse_args()
@@ -98,6 +101,7 @@ kinmodel.fit_and_output(
         plot_time_extension_factor = args.plot_expansion_factor,
         plot_output = not args.no_plot,
         text_full_output = not args.summary_output,
-        monitor = args.verbose,
+        monitor = not args.no_verbose,
         bootstrap_iterations=args.bootstrap_iterations,
+        bootstrap_CI=args.confidence_interval,
         more_stats=args.more_stats)

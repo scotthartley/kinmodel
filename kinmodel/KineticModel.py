@@ -145,8 +145,7 @@ class KineticModel:
         reg_info['dataset_concs'] = [d.concs.tolist() for d in datasets]
         reg_info['num_datasets'] = num_datasets
         
-        reg_info['fit_ks'] = list(results['x'][:self.num_ks])
-        
+        reg_info['fit_ks'] = list(results['x'][:self.num_ks])        
         fit_concs = list(results['x'][self.num_ks:])
         reg_info['fit_concs'] = []
         for n in range(num_datasets):
@@ -189,13 +188,14 @@ class KineticModel:
         D_inv = np.linalg.inv(np.sqrt(np.diag(np.diag(reg_info['pcov']))))
         reg_info['corr'] = D_inv @ reg_info['pcov'] @ D_inv
 
-        # Calculates parameter errors from bootstrap method. A random
-        # residual is added to each data point and the resulting
-        # "boot_dataset" is refit. Errors are obtained from the standard
-        # deviations of the resulting parameter sets. Only executed if
-        # N_boot >= 2 (makes no sense otherwise), should be much larger.
+        # Calculates errors using a non-parametric bootstrap method. A
+        # random residual is added to each data point and the resulting
+        # "boot_dataset" is refit. Errors are obtained from taking
+        # confidence intervals from the resulting datasets. Only
+        # executed if N_boot >= 2 (makes no sense otherwise), should be
+        # much larger.
         if N_boot > 1:
-
+            reg_info['boot_num'] = N_boot
             # Will store fit parameters for each bootstrap cycle.
             boot_params = np.empty((0, 
                     self.num_ks+self.num_var_concs*num_datasets))
@@ -235,13 +235,47 @@ class KineticModel:
                         results['x'], bounds=self.bounds, args=(boot_datasets, False))
                 boot_params = np.append(boot_params, [boot_results['x']], axis=0)
 
-                boot_std = []
-                for n in range(self.num_ks + self.num_var_concs*num_datasets):
-                    boot_std.append(np.std(boot_params[:,n]))
-                reg_info['boot_stddevs'] = boot_std
-                reg_info['boot_num'] = N_boot
+            boot_fit_ks = []
+            boot_fit_concs = [[] for _ in range(num_datasets)]
+            for p in boot_params:
+                boot_fit_ks.append(list(p[:self.num_ks]))
+        
+                concs = list(p[self.num_ks:])
+                for n in range(num_datasets):
+                    boot_fit_concs[n].append([])
+                    for m in range(self.num_var_concs):
+                        boot_fit_concs[n][-1].append(concs[n*self.num_var_concs+m])
+            reg_info['boot_fit_ks'] = np.array(boot_fit_ks)
+            reg_info['boot_fit_concs'] = np.array(boot_fit_concs)
 
         return reg_info
+
+    def bootstrap_param_CIs(self, reg_info, dataset_n, CI):
+        """Returns upper and lower confidence intervals for bootstrapped
+        statistics, as an ndarray.
+        """
+        k_CIs = np.percentile(reg_info['boot_fit_ks'], [(100-CI)/2, (100+CI)/2], 
+                axis=0)
+        conc_CIs = np.percentile(reg_info['boot_fit_concs'][dataset_n], 
+                [(100-CI)/2, (100+CI)/2], axis=0)
+        
+        return k_CIs, conc_CIs
+
+    def bootstrap_plot_CIs(self, reg_info, dataset_n, CI, num_points, 
+            time_exp_factor):
+        """Returns upper and lower confidence intervals for bootstrapped
+        statistics, as an ndarray.
+        """
+        max_time = max(reg_info['dataset_times'][dataset_n])*time_exp_factor
+        # print(reg_info['boot_fit_concs'][dataset_n])
+        boot_results = np.empty((0, num_points, self.num_concs))
+        for n in range(reg_info['boot_num']):
+            _, boot_plot, _ = self.simulate(reg_info['boot_fit_ks'][n], 
+                    reg_info['boot_fit_concs'][dataset_n][n], num_points, 
+                    max_time, integrate=False)
+            boot_results = np.append(boot_results, [boot_plot], axis=0)
+
+        return np.percentile(boot_results, [(100-CI)/2, (100+CI)/2], axis=0)
 
     def _solved_kin_sys(self, starting_concs, ks, times):
         """Solves the system of differential equations for given values
@@ -251,7 +285,6 @@ class KineticModel:
         """
         return scipy.integrate.odeint(self.kin_sys, starting_concs, times, 
                 args=tuple(ks), mxstep=self.MAX_STEPS)
-
 
     def _residual(self, parameters, datasets, monitor=False): 
         """Calculates the residuals (as a np array) at a given time for

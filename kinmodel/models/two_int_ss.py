@@ -1,7 +1,7 @@
 import textwrap
 from ..KineticModel import KineticModel
 
-def sep_int_ss(concs, t, *ks):
+def equations(concs, t, *ks):
     Ac, E, U, An = concs
     k1, k4, K1, K2 = ks
 
@@ -11,7 +11,7 @@ def sep_int_ss(concs, t, *ks):
              + (k1*Ac**2*E)/(Ac+K1) - k4*An + (k4*Ac*An)/(Ac+K2) ]
 
 model = KineticModel(
-    name = "sep_int_ss",
+    name = "two_int_ss",
     description = textwrap.dedent("""\
         Simple model with distinct intermediates:
 
@@ -22,7 +22,7 @@ model = KineticModel(
             I2      ---> Ac      (k5)
 
             Steady-state approximation with K1 = k3/k2, K2 = k5/k_4"""),
-    kin_sys = sep_int_ss,
+    kin_sys = equations,
     ks_guesses = [0.02, 0.03, 10, 10],
     starting_concs_guesses = [50, 50],
     starting_concs_constant = [0, 0],

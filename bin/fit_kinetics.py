@@ -8,10 +8,10 @@ import kinmodel
 
 model_help_text = "default models:\n"
 for m in kinmodel.default_models:
-    model_help_text += f'  "{m}"\n'
+    model_help_text += f'---\n  *{m}*\n'
     model_help_text += textwrap.indent(kinmodel.default_models[m].description,
             "    ")
-    model_help_text += "\n\n"
+    model_help_text += "\n"
 
 
 parser = argparse.ArgumentParser(

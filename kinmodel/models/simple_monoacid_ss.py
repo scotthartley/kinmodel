@@ -1,7 +1,7 @@
 import textwrap
 from ..KineticModel import KineticModel
 
-def simple_monoacid(concs, t, *ks):
+def equations(concs, t, *ks):
     Ac, E, U, An = concs
     k1, K, k2 = ks
 
@@ -11,7 +11,7 @@ def simple_monoacid(concs, t, *ks):
              + (k1*E*Ac**2)/(K+Ac) - k2*An ]
 
 model = KineticModel(
-    name="simple_monoacid",
+    name="simple_monoacid_ss",
     description=textwrap.dedent("""\
         Simplest monoacid kinetic model:
 
@@ -21,7 +21,7 @@ model = KineticModel(
             An     ---> 2Ac    (k2)
 
             Steady-state approximation with K = kiAc/kiAn"""),
-    kin_sys = simple_monoacid,
+    kin_sys = equations,
     ks_guesses = [0.02, 200, 0.5],
     starting_concs_guesses = [100, 400],
     starting_concs_constant = [0, 0],

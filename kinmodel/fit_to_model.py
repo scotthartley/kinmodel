@@ -2,7 +2,7 @@
 given kinetic model and output the results.
 
 """
-import platform, itertools
+import platform
 import numpy as np, scipy
 from matplotlib import pyplot as plt, rcParams
 import kinmodel
@@ -119,6 +119,7 @@ def prepare_text(model, reg_info, dataset_n, num_points, time_exp_factor,
     text += f"Message: {reg_info['message']}\n"
 
     text += f"Total points (dof): {reg_info['total_points']} ({reg_info['dof']})\n"
+    text += f"Sum square residuals (weighted): {reg_info['ssr']:.2e}\n"
     text += f"Sum square residuals (unweighted): {reg_info['pure_ssr']:.2e}\n"
     text += f"RMSD (unweighted): {reg_info['pure_rmsd']:.2e}\n"
     text += "\n"

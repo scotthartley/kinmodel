@@ -1,7 +1,7 @@
 import textwrap
 from ..KineticModel import KineticModel
 
-def combo_int_ss(concs, t, *ks):
+def equations(concs, t, *ks):
     Ac, E, U, An = concs
     k1, k_4, K1, K2 = ks
 
@@ -13,9 +13,9 @@ def combo_int_ss(concs, t, *ks):
              - k_4*An + (k1*Ac**2*E)/(Ac+K2+K1*Ac+K1*K2) + (k_4*Ac*An)/(Ac+K2)]
 
 model = KineticModel(
-    name = "combo_int_ss",
+    name = "two_int_int_hyd_ss",
     description = textwrap.dedent("""\
-        Simple model with distinct intermediates:
+        Simple model with distinct intermediates and direct int hydrolysis:
 
             Ac + E  ---> I1      (k1)
             I1      ---> I2 + U  (k2)
@@ -24,7 +24,7 @@ model = KineticModel(
             I2      ---> Ac      (k5)
 
             Steady-state approximation with K1 = k3/k2, K2 = k5/k4"""),
-    kin_sys = combo_int_ss,
+    kin_sys = equations,
     ks_guesses = [0.02, 0.1, 10, 10],
     starting_concs_guesses = [50, 50],
     starting_concs_constant = [0, 0],

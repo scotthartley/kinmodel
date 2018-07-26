@@ -18,11 +18,11 @@ model = KineticModel(
     description = textwrap.dedent("""\
         Simple model with distinct intermediates and direct anhydride formation:
 
-            Ac + E  ---> I1      (k1)
-            I1      ---> I2 + U  (k2)
+             Ac + E ---> I1      (k1)
+                 I1 ---> I2 + U  (k2)
             I1 + Ac ---> An + U  (k3)
             I2 + Ac <==> An      (k4, k_4)
-            I2      ---> Ac      (k5)
+                 I2 ---> Ac      (k5)
 
             Steady-state approximation with K1 = k3/k2, K2 = k5/k4"""),
     kin_sys = equations,

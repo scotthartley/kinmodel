@@ -15,10 +15,10 @@ model = KineticModel(
     description=textwrap.dedent("""\
         Simplest monoacid kinetic model:
 
-            Ac + E ---> I      (k1)
-            I + Ac ---> An + U (kiAn)
-            I      ---> Ac + U (kiAc)
-            An     ---> 2Ac    (k2)
+            Ac + E ---> I       (k1)
+            I + Ac ---> An + U  (kiAn)
+                 I ---> Ac + U  (kiAc)
+                An ---> 2Ac     (k2)
 
             Steady-state approximation with K = kiAc/kiAn"""),
     kin_sys = equations,

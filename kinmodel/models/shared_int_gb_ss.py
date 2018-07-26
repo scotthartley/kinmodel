@@ -17,10 +17,10 @@ model = KineticModel(
         Simple model with shared acylpyridinium intermediate and direct general
         base catalysis of acylpyridinium intermediate by Ac (i.e., AcO-):
 
-            Ac + E ---> I + U (k1)
-            I + Ac <==> An    (k2, k-2)
-            I      ---> Ac    (k3)
-            I + Ac ---> 2Ac   (k4)
+            Ac + E ---> I + U  (k1)
+            I + Ac <==> An     (k2, k-2)
+                 I ---> Ac     (k3)
+            I + Ac ---> 2Ac    (k4)
 
             Steady-state approximation with K1 = k3/(k2+k4) and K2 = k4/(k2+k4)"""),
     kin_sys = equations,
@@ -33,13 +33,7 @@ model = KineticModel(
     bottom_plot = [0, 3],
     sort_order = [1, 3, 2, 0],
     int_eqn = [
-        lambda cs, ks: (ks[0]*cs[0]**2*cs[1])/(cs[0]+ks[2]),
-        lambda cs, ks: ks[1]*cs[3],
-        lambda cs, ks: (ks[1]*cs[3]*cs[0])/(cs[0]+ks[2]),
     ],
     int_eqn_desc = [
-        "(k1*Ac^2*E)/(Ac+K)",
-        "k_2*An",
-        "(k_2*An*Ac)/(Ac+K)",
     ]
     )

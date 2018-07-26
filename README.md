@@ -25,7 +25,7 @@ Some models are included as part of the default installation, but new ones can b
 import textwrap
 from kinmodel import KineticModel
 
-def test_model(concs, t, *ks):
+def equations(concs, t, *ks):
     S1, S2, S3 = concs
     k1, k2, k3 = ks
 
@@ -40,7 +40,7 @@ model = KineticModel(
 
             S1 <==> S2 (k1, k2)
             S2 ---> S3 (k3)"""),
-    kin_sys = test_model,
+    kin_sys = equations,
     ks_guesses = [0.02, 0.02, 0.1],
     starting_concs_guesses = [20],
     starting_concs_constant = [0, 0],

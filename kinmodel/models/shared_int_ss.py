@@ -16,9 +16,9 @@ model = KineticModel(
     description = textwrap.dedent("""\
         Simple model with shared acylpyridinium intermediate:
 
-            Ac + E ---> I + U (k1)
-            I + Ac <==> An    (k2, k-2)
-            I      ---> Ac    (k3)
+            Ac + E ---> I + U  (k1)
+            I + Ac <==> An     (k2, k-2)
+                 I ---> Ac     (k3)
 
             Steady-state approximation with K = k3/k2"""),
     kin_sys = equations,

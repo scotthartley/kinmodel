@@ -34,7 +34,7 @@ parser.add_argument("-w", "--weight_min_conc",
 parser.add_argument("-b", "--bootstrap_iterations",
     help=("Number of bootstrapping iterations to perform for parameter errors "
             "(default=100, set to 0 to disable)"),
-    type=int, default=100)
+    type=int, default=0)
 parser.add_argument("-ci", "--confidence_interval",
     help=("%% confidence interval to use for bootstrap statistics (default=99)"),
     type=float, default=99)

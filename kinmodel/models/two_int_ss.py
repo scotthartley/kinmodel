@@ -15,11 +15,11 @@ model = KineticModel(
     description = textwrap.dedent("""\
         Simple model with distinct intermediates:
 
-            Ac + E  ---> I1      (k1)
-            I1 + Ac ---> An + U  (k2)
-            I1      ---> Ac + U  (k3)
-            An      <==> I2 + Ac (k4, k_4)
-            I2      ---> Ac      (k5)
+             Ac + E ---> I1       (k1)
+            I1 + Ac ---> An + U   (k2)
+                 I1 ---> Ac + U   (k3)
+                 An <==> I2 + Ac  (k4, k_4)
+                 I2 ---> Ac       (k5)
 
             Steady-state approximation with K1 = k3/k2, K2 = k5/k_4"""),
     kin_sys = equations,

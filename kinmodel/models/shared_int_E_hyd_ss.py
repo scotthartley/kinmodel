@@ -17,10 +17,10 @@ model = KineticModel(
         Simple model with shared acylpyridinium intermediate and direct
         EDC hydrolysis:
 
-            Ac + E ---> I + U (k1)
-            I + Ac <==> An    (k2, k-2)
-                 I ---> Ac    (k3)
-                 E ---> U     (k4)
+            Ac + E ---> I + U  (k1)
+            I + Ac <==> An     (k2, k-2)
+                 I ---> Ac     (k3)
+                 E ---> U      (k4)
 
             Steady-state approximation with K = k3/k2"""),
     kin_sys = equations,

@@ -4,9 +4,12 @@ This class is used for kinetic models that can be fit to experimental
 data or simulated with a given set of parameters.
 
 """
+import sys
+import os
 import itertools
 import scipy.integrate, scipy.optimize, scipy.linalg, numpy as np
 from .Dataset import Dataset
+from .default_models import default_models
 
 class KineticModel:
     """Defines a kinetic model (as a system of differential equations).
@@ -100,6 +103,10 @@ class KineticModel:
         return max(len(n) for n in self.parameter_names)
 
     @property
+    def len_legend(self):
+        return max(len(n) for n in self.legend_names)
+
+    @property
     def len_int_eqn_desc(self):
         return max(len(n) for n in self.int_eqn_desc)
 
@@ -110,8 +117,14 @@ class KineticModel:
 
         """
         smooth_ts_out, deltaT = np.linspace(0, max_time, num_points, retstep=True)
-        smooth_curves_out = self._solved_kin_sys(np.append(concs,
-                self.starting_concs_constant), ks, smooth_ts_out)
+
+        if len(concs) == self.num_var_concs:
+            smooth_curves_out = self._solved_kin_sys(np.append(concs,
+                    self.starting_concs_constant), ks, smooth_ts_out)
+        elif len(concs) == self.num_concs:
+            smooth_curves_out = self._solved_kin_sys(concs, ks, smooth_ts_out)
+        else:
+            raise(RuntimeError("Invalid number of concentrations specified."))
 
         if integrate:
             integrals = {}
@@ -331,3 +344,22 @@ class KineticModel:
             print(f"Current ssr (weighted): {sum([n**2 for n in residuals])}")
         
         return np.array(residuals)
+
+    @staticmethod
+    def get_model(model_name, new_model=None):
+        """Returns the model object corresponding to model_name, with 
+        the option of specifying an additional file with new models.
+        """
+        if new_model:
+            sys.path.append(os.getcwd())
+            new_model = __import__(new_model).model
+            models = {**default_models, **{new_model.name: new_model}}
+        else:    
+            models = default_models
+
+        try:
+            return models[model_name]
+        except KeyError:
+            print(f'"{model_name}" is not a valid model.')
+            print(", ".join(a for a in models), "are currently available.")
+            sys.exit(1)

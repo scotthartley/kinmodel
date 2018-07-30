@@ -15,7 +15,7 @@ setup(name='kinmodel',
       url='https://hartleygroup.org',
       license='MIT',
       packages=find_packages(),
-      scripts=['bin/fit_kinetics.py'],
+      scripts=['bin/fit_kinetics.py', 'bin/model_kinetics.py'],
       install_requires=['numpy', 'scipy', 'matplotlib'],
       python_requires=">=3.6",
       )

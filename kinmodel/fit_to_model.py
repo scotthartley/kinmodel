@@ -5,7 +5,7 @@ given kinetic model and output the results.
 import platform
 import numpy as np, scipy
 from matplotlib import pyplot as plt, rcParams
-import kinmodel
+from . import _version
 from .Dataset import Dataset
 
 # Parameters and settings for plots.
@@ -72,12 +72,12 @@ def prepare_text(model, reg_info, dataset_n, num_points, time_exp_factor,
 
     text = title + "\n"
     text += "="*len(title) + "\n"
-    text += "\n"
 
     text += f"Python version: {platform.python_version()}\n"
     text += f"Numpy version: {np.version.version}\n"
     text += f"Scipy version: {scipy.version.version}\n"
-    text += f"kinmodel version: {kinmodel.__version__}\n"
+    text += f"kinmodel version: {_version.__version__}\n"
+    text += "\n"
     text += "\n"
 
     text += "Model\n"
@@ -85,15 +85,19 @@ def prepare_text(model, reg_info, dataset_n, num_points, time_exp_factor,
     text += f"Name: {model.name}\n"
     text += f"Description: {model.description}\n"
     text += "\n"
+    text += "\n"
 
-    text += "Optimized parameters\n"
-    text += "--------------------\n"
+    text += "Regression\n"
+    text += "----------\n"
+
+    text += "Optimized parameters:\n"
+    text += "\n"
     if 'boot_num' in reg_info and boot_CI:
         for n in range(len(dataset_params)):
             text += (f"{model.parameter_names[n]:>{model.len_params}} "
                     f"= {dataset_params[n]:+5e} "
                     f"± {(param_CIs[1][n]-param_CIs[0][n])/2:.1e} "
-                    f"({param_CIs[0][n]:+5e} to {param_CIs[1][n]:+5e})\n")
+                    f"({param_CIs[0][n]:+5e}, {param_CIs[1][n]:+5e})\n")
         text += "\n"
         text += (f"Errors are {boot_CI}% confidence intervals from "
                 f"bootstrapping ({reg_info['boot_num']} permutations).\n")
@@ -103,18 +107,8 @@ def prepare_text(model, reg_info, dataset_n, num_points, time_exp_factor,
                     f"= {dataset_params[n]:+5e}\n")
     text += "\n"
 
-    if integrals:
-        text += "Integrals\n"
-        text += "---------\n"
-        for n in integrals:
-            integral_label = "∫ "+n+" dt"
-            text += (f"{integral_label:>{model.len_int_eqn_desc+5}} "
-                    f"= {integrals[n]:+5e}\n")
-        text += "\n"
-
-    text += "Regression info\n"
-    text += "---------------\n"
-
+    text += "Regression info:\n"
+    text += "\n"
     text += f"Success: {reg_info['success']}\n"
     text += f"Message: {reg_info['message']}\n"
 
@@ -140,10 +134,26 @@ def prepare_text(model, reg_info, dataset_n, num_points, time_exp_factor,
             text += (f"{all_parameter_names[n]:>{model.len_params}} " 
                     + " ".join(f"{m:+.2f}" for m in reg_info['corr'][n]) + "\n")
         text += "\n"
+    text += "\n"
+
+    text += "Simulation\n"
+    text += "----------\n"
+    text += (f"Points used to generate integrals and concentration vs time "
+            f"data: {num_points}\n")
+    text += "\n"
+
+    if integrals:
+        text += "Integrals:\n"
+        text += "\n"
+        for n in integrals:
+            integral_label = "∫ " + n + " dt"
+            text += (f"{integral_label:>{model.len_int_eqn_desc+5}} "
+                    f"= {integrals[n]:+5e}\n")
+        text += "\n"
 
     if full_simulation:
-        text += "Results\n"
-        text += "-------\n"
+        text += "Results:\n"
+        text += "\n"
         if 'boot_num' in reg_info and boot_CI:
             boot_CI_data = model.bootstrap_plot_CIs(reg_info, dataset_n, 
                     boot_CI, num_points, time_exp_factor)
@@ -270,7 +280,7 @@ def generate_plot(model, reg_info, dataset_n, num_points, time_exp_factor,
 def fit_and_output(model, data_filename,
             text_output_points=3000, text_time_extension_factor=3.0, 
             text_output=True, plot_output_points=1000, 
-            plot_time_extension_factor=1.1, plot_output=True, 
+            plot_time_extension_factor=1.1, 
             text_full_output=True, monitor=False, 
             bootstrap_iterations=100, bootstrap_CI=95, more_stats=False):
     """Carry out the fit of the model and output the data.
@@ -292,7 +302,7 @@ def fit_and_output(model, data_filename,
         else:
             print(output_text)
 
-    if plot_output:
+    if plot_output_points:
         for n in range(reg_info['num_datasets']):
             plot_output_filename = f"{data_filename}_{model.name}_{reg_info['dataset_names'][n]}.pdf"
             generate_plot(model, reg_info, n, plot_output_points, 

@@ -1,9 +1,9 @@
 #! /usr/bin/env python3
 """Executable script to interface with modules in the kinmodel
-package.
+package for experimental data fitting.
 
 """
-import argparse, sys, os, textwrap
+import argparse, textwrap
 import kinmodel
 
 model_help_text = "default models:\n"
@@ -12,7 +12,6 @@ for m in kinmodel.default_models:
     model_help_text += textwrap.indent(kinmodel.default_models[m].description,
             "    ")
     model_help_text += "\n"
-
 
 parser = argparse.ArgumentParser(
     formatter_class=argparse.RawTextHelpFormatter,
@@ -52,15 +51,12 @@ parser.add_argument("-ns", "--no_text_save",
     help="Do not save text output (send to stdout instead)",
     action='store_true')
 parser.add_argument("-pp", "--plot_output_points",
-    help="Number of points for curves in output (pdf) (default = 1000)",
+    help="Number of points for curves in output (pdf) (default = 1000, 0 to disable)",
     type=int, default=1000)
 parser.add_argument("-pf", "--plot_expansion_factor",
     help=("Expansion factor for curves in output "
             "(i.e., extension past last point) (default = 1.1)"),
     type=float, default=1.1)
-parser.add_argument("-np", "--no_plot",
-    help="Disable plot output",
-    action='store_true')
 parser.add_argument("-ms", "--more_stats",
     help="Output covariance/correlation matrices",
     action='store_true')
@@ -70,20 +66,7 @@ parser.add_argument("-nv", "--no_verbose",
     action='store_true')
 args = parser.parse_args()
 
-sys.path.append(os.getcwd())
-
-if args.new_model:
-    new_model = __import__(args.new_model).model
-    models = {**kinmodel.default_models, **{new_model.name: new_model}}
-else:    
-    models = kinmodel.default_models
-
-try:
-    model = models[args.model_name]
-except KeyError:
-    print(f'"{args.model_name}" is not a valid model.')
-    print(", ".join(a for a in models), "are currently available.")
-    sys.exit(1)
+model = kinmodel.KineticModel.get_model(args.model_name, args.new_model)
 
 if args.weight_min_conc:
     model.weight_func = lambda exp: 1/max(exp, args.weight_min_conc)
@@ -99,7 +82,6 @@ kinmodel.fit_and_output(
         text_output = not args.no_text_save,
         plot_output_points = args.plot_output_points, 
         plot_time_extension_factor = args.plot_expansion_factor,
-        plot_output = not args.no_plot,
         text_full_output = not args.summary_output,
         monitor = not args.no_verbose,
         bootstrap_iterations=args.bootstrap_iterations,

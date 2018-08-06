@@ -7,9 +7,13 @@ data or simulated with a given set of parameters.
 import sys
 import os
 import itertools
-import scipy.integrate, scipy.optimize, scipy.linalg, numpy as np
+import numpy as np
+import scipy.integrate
+import scipy.optimize
+import scipy.linalg
 from .Dataset import Dataset
 from .default_models import default_models
+
 
 class KineticModel:
     """Defines a kinetic model (as a system of differential equations).
@@ -20,58 +24,67 @@ class KineticModel:
         kin_sys (list of equations): List of differential equations that
             will be solved.
         ks_guesses (list of floats): Initial guesses for k's and K's.
-        starting_concs_guesses (list of floats): Initial guesses for
+        ks_constant (list of floats): k's and K's that are constants.
+        conc0_guesses (list of floats): Initial guesses for
             starting concs to be optimized.
-        starting_concs_constant (list of floats): Starting concentrations 
+        conc0_constant (list of floats): Starting concentrations
             that will be held constant.
-        parameter_names (list of strings): Labels used for the
+        k_var_names, etc. (list of strings): Labels used for the
             parameters.
         legend_names (list of strings): Labels used for the
             concentrations in plots.
         top_plot (list of ints): Concentrations that should be plotted
             on top plot of output.
         bottom_plot (list of ints): (see top_plot)
-        sort_order (list of ints): Translates order of columns in 
-            experimental input into order of concentrations as defined 
+        sort_order (list of ints): Translates order of columns in
+            experimental input into order of concentrations as defined
             in model.
         int_eqn (list of functions): Functions of concentration and
             parameters that will be integrated, typically passed
-            as lambda functions of lists of concentrations and 
+            as lambda functions of lists of concentrations and
             parameters (e.g., lambda cs, ks: ...)
         int_eqn_desc (list of strings): Descriptions of int_eqn.
         weight_func: Weighting function for residuals.
-        bounds (tuple of floats, default (0, np.inf)): bounds for 
+        bounds (tuple of floats, default (0, np.inf)): bounds for
             parameters.
 
     """
 
-    MAX_STEPS = 10000 # Maximum steps in scipy.integrate.odeint
-    
+    MAX_STEPS = 10000  # Maximum steps in scipy.integrate.odeint
+
     def __init__(self,
                  name,
                  description,
                  kin_sys,
-                 ks_guesses, 
-                 starting_concs_guesses, 
-                 starting_concs_constant, 
-                 parameter_names,
+                 ks_guesses,
+                 ks_constant,
+                 conc0_guesses,
+                 conc0_constant,
+                 k_var_names,
+                 k_const_names,
+                 conc0_var_names,
+                 conc0_const_names,
                  legend_names,
                  top_plot,
                  bottom_plot,
                  sort_order,
-                 int_eqn = [],
-                 int_eqn_desc = [],
-                 weight_func = lambda exp: 1,
-                 bounds = (0, np.inf),
+                 int_eqn=[],
+                 int_eqn_desc=[],
+                 weight_func=lambda exp: 1,
+                 bounds=(0, np.inf),
                  ):
-        
+
         self.name = name
         self.description = description
         self.kin_sys = kin_sys
         self.ks_guesses = ks_guesses
-        self.starting_concs_guesses = starting_concs_guesses
-        self.starting_concs_constant = starting_concs_constant
-        self.parameter_names = parameter_names
+        self.ks_constant = ks_constant
+        self.conc0_guesses = conc0_guesses
+        self.conc0_constant = conc0_constant
+        self.k_var_names = k_var_names
+        self.k_const_names = k_const_names
+        self.conc0_var_names = conc0_var_names
+        self.conc0_const_names = conc0_const_names
         self.legend_names = legend_names
         self.top_plot = top_plot
         self.bottom_plot = bottom_plot
@@ -82,25 +95,52 @@ class KineticModel:
         self.bounds = bounds
 
     @property
-    def num_concs(self):
-        return (len(self.starting_concs_guesses) 
-                + len(self.starting_concs_constant))
+    def num_concs0(self):
+        return self.num_var_concs0 + self.num_const_concs0
 
     @property
-    def num_var_concs(self):
-        return len(self.starting_concs_guesses)
+    def num_var_concs0(self):
+        return len(self.conc0_guesses)
+
+    @property
+    def num_const_concs0(self):
+        return len(self.conc0_constant)
 
     @property
     def num_ks(self):
+        return self.num_var_ks + self.num_const_ks
+
+    @property
+    def num_var_ks(self):
         return len(self.ks_guesses)
 
     @property
+    def num_const_ks(self):
+        return len(self.ks_constant)
+
+    @property
     def num_params(self):
-        return self.num_ks + len(self.starting_concs_guesses)
+        return self.num_var_ks + self.num_var_concs0
+
+    @property
+    def num_consts(self):
+        return self.num_const_ks + self.num_var_concs0
+
+    @property
+    def parameter_names(self):
+        return list(self.k_var_names + self.conc0_var_names)
+
+    @property
+    def constant_names(self):
+        return list(self.k_const_names + self.conc0_const_names)
 
     @property
     def len_params(self):
         return max(len(n) for n in self.parameter_names)
+
+    @property
+    def len_consts(self):
+        return max(len(n) for n in self.constant_names)
 
     @property
     def len_legend(self):
@@ -115,16 +155,29 @@ class KineticModel:
         for a given number of points, maximum time, and with optional
         integration.
 
-        """
-        smooth_ts_out, deltaT = np.linspace(0, max_time, num_points, retstep=True)
+        Both ks and concs can be either just the variable values or the
+        all possible values.
 
-        if len(concs) == self.num_var_concs:
-            smooth_curves_out = self._solved_kin_sys(np.append(concs,
-                    self.starting_concs_constant), ks, smooth_ts_out)
-        elif len(concs) == self.num_concs:
-            smooth_curves_out = self._solved_kin_sys(concs, ks, smooth_ts_out)
+        """
+        smooth_ts_out, deltaT = np.linspace(0, max_time, num_points,
+                                            retstep=True)
+
+        if len(ks) == self.num_var_ks:
+            all_ks = np.append(ks, self.ks_constant)
+        elif len(ks) == self.num_ks:
+            all_ks = ks
+        else:
+            raise(RuntimeError(f"Invalid number of k's specified: {ks}"))
+
+        if len(concs) == self.num_var_concs0:
+            all_concs = np.append(concs, self.conc0_constant)
+        elif len(concs) == self.num_concs0:
+            all_concs = concs
         else:
             raise(RuntimeError("Invalid number of concentrations specified."))
+
+        smooth_curves_out = self._solved_kin_sys(all_concs, all_ks,
+                                                 smooth_ts_out)
 
         if integrate:
             integrals = {}
@@ -138,7 +191,9 @@ class KineticModel:
 
         return smooth_ts_out, smooth_curves_out, integrals
 
-    def fit_to_model(self, datasets, N_boot=0, monitor=False):
+    def fit_to_model(self, datasets, ks_guesses=None,
+                     conc0_guesses=None, ks_const=None,
+                     conc0_const=None, N_boot=0, monitor=False):
         """Performs a fit to a set of datasets containing time and
         concentration data.
 
@@ -146,43 +201,92 @@ class KineticModel:
         num_datasets = len(datasets)
         total_points = sum(d.total_data_points for d in datasets)
 
-        parameter_guesses = (self.ks_guesses 
-                + self.starting_concs_guesses*num_datasets)
+        parameter_guesses = []
+        if ks_guesses:
+            if len(ks_guesses) == self.num_var_ks:
+                parameter_guesses += ks_guesses
+            else:
+                raise(RuntimeError("Invalid number of k's specified"))
+        else:
+            parameter_guesses += self.ks_guesses
+        if conc0_guesses:
+            if len(conc0_guesses) == self.num_var_concs0:
+                parameter_guesses += conc0_guesses*num_datasets
+            elif len(conc0_guesses) == self.num_var_concs0*num_datasets:
+                parameter_guesses += conc0_guesses
+            else:
+                raise(RuntimeError(
+                        "Invalid number of concentrations specified."))
+        else:
+            parameter_guesses += self.conc0_guesses*num_datasets
 
-        results = scipy.optimize.least_squares(self._residual, 
-                parameter_guesses, bounds=self.bounds, args=(datasets, monitor))
+        parameter_constants = []
+        if ks_const:
+            if len(ks_const) == self.num_const_ks:
+                parameter_constants += ks_const
+            else:
+                raise(RuntimeError("Invalid number of k's specified."))
+        else:
+            parameter_constants += self.ks_constant
+        if conc0_const:
+            if len(conc0_const) == self.num_const_concs0:
+                parameter_constants += conc0_const*num_datasets
+            elif len(conc0_const) == self.num_const_concs0*num_datasets:
+                parameter_constants += conc0_const
+            else:
+                raise(RuntimeError(
+                        "Invalid number of concentrations specified."))
+        else:
+            parameter_constants += self.conc0_constant*num_datasets
+
+        results = scipy.optimize.least_squares(
+                self._residual, parameter_guesses, bounds=self.bounds,
+                args=(datasets, parameter_constants, monitor))
 
         reg_info = {}
         reg_info['dataset_names'] = [d.name for d in datasets]
         reg_info['dataset_times'] = [d.times.tolist() for d in datasets]
         reg_info['dataset_concs'] = [d.concs.tolist() for d in datasets]
         reg_info['num_datasets'] = num_datasets
-        
-        reg_info['fit_ks'] = list(results['x'][:self.num_ks])        
-        fit_concs = list(results['x'][self.num_ks:])
+
+        reg_info['fit_ks'] = list(results['x'][:self.num_var_ks])
+        fit_concs = list(results['x'][self.num_var_ks:])
         reg_info['fit_concs'] = []
         for n in range(num_datasets):
-            reg_info['fit_concs'].append([])
-            for m in range(self.num_var_concs):
-                reg_info['fit_concs'][-1].append(fit_concs[n*self.num_var_concs+m])
+            reg_info['fit_concs'].append(self._dataset_concs(
+                    n, fit_concs, self.num_var_concs0))
+        reg_info['fixed_ks'] = list(parameter_constants[:self.num_const_ks])
+        fixed_concs = list(parameter_constants[self.num_const_ks:])
+        reg_info['fixed_concs'] = []
+        for n in range(num_datasets):
+            reg_info['fixed_concs'].append(
+                    self._dataset_concs(n, fixed_concs, self.num_const_concs0))
 
         # Residuals with weighting removed.
         pure_residuals = []
         for d in range(len(datasets)):
-            solution = self._solved_kin_sys(
-                    reg_info['fit_concs'][d] + self.starting_concs_constant,
+            d_ks = np.append(
                     reg_info['fit_ks'],
-                    datasets[d].times)
-            for n, m in itertools.product(range(datasets[d].num_times), range(self.num_concs)):
-                if not np.isnan(datasets[d].concs[n,m]):
-                    pure_residuals.append(datasets[d].concs[n,m] - solution[n,m])
+                    parameter_constants[:self.num_const_ks])
+            d_concs = np.append(
+                    reg_info['fit_concs'][d],
+                    self._dataset_concs(
+                            d, parameter_constants[self.num_const_ks:],
+                            self.num_const_concs0))
+            solution = self._solved_kin_sys(d_concs, d_ks, datasets[d].times)
+            for n, m in itertools.product(
+                    range(datasets[d].num_times), range(self.num_concs0)):
+                if not np.isnan(datasets[d].concs[n, m]):
+                    pure_residuals.append(
+                            datasets[d].concs[n, m] - solution[n, m])
 
         reg_info['success'] = results['success']
         reg_info['message'] = results['message']
         reg_info['ssr'] = results.cost * 2
 
         reg_info['total_points'] = total_points
-        reg_info['total_params'] = self.num_ks + self.num_var_concs*num_datasets
+        reg_info['total_params'] = (self.num_ks
+                                    + self.num_var_concs0*num_datasets)
         reg_info['dof'] = total_points - reg_info['total_params']
         reg_info['m_ssq'] = reg_info['ssr']/reg_info['dof']
         reg_info['rmsd'] = reg_info['m_ssq']**0.5
@@ -201,65 +305,12 @@ class KineticModel:
         D_inv = np.linalg.inv(np.sqrt(np.diag(np.diag(reg_info['pcov']))))
         reg_info['corr'] = D_inv @ reg_info['pcov'] @ D_inv
 
-        # Calculates errors using a non-parametric bootstrap method. A
-        # random residual is added to each data point and the resulting
-        # "boot_dataset" is refit. Errors are obtained from taking
-        # confidence intervals from the resulting datasets. Only
-        # executed if N_boot >= 2 (makes no sense otherwise), should be
-        # much larger.
         if N_boot > 1:
             reg_info['boot_num'] = N_boot
-            # Will store fit parameters for each bootstrap cycle.
-            boot_params = np.empty((0, 
-                    self.num_ks+self.num_var_concs*num_datasets))
-            for i in range(N_boot):
-                if monitor:
-                    print(f"Bootstrapping iteration {i+1} of {N_boot}")
-                
-                # Perturbed datasets that can be fit.
-                boot_datasets = []
-                for d in datasets:
-                    new_concs = np.empty((0, self.num_concs))
-                    new_concs_t0 = []
-                    # Leave starting conc 0's as 0's. These are not 
-                    # unknowns.
-                    for conc in d.concs[0]:
-                        if not np.isnan(conc) and conc != 0:
-                            new_concs_t0.append(conc 
-                                    + np.random.choice(results['fun'])/self.weight_func(conc))
-                        else:
-                            new_concs_t0.append(conc)
-                    new_concs = np.append(new_concs, [new_concs_t0], axis=0)
-
-                    for n in range(1, d.num_times):
-                        new_concs_t = []
-                        for conc in d.concs[n]:
-                            if not np.isnan(conc):
-                                new_concs_t.append(conc 
-                                        + np.random.choice(results['fun'])/self.weight_func(conc))
-                            else:
-                                new_concs_t.append(np.nan)
-                        new_concs = np.append(new_concs, [np.array(new_concs_t)], 
-                                axis=0)
-
-                    boot_datasets.append(Dataset(times=d.times, concs=new_concs))
-
-                boot_results = scipy.optimize.least_squares(self._residual,
-                        results['x'], bounds=self.bounds, args=(boot_datasets, False))
-                boot_params = np.append(boot_params, [boot_results['x']], axis=0)
-
-            boot_fit_ks = []
-            boot_fit_concs = [[] for _ in range(num_datasets)]
-            for p in boot_params:
-                boot_fit_ks.append(list(p[:self.num_ks]))
-        
-                concs = list(p[self.num_ks:])
-                for n in range(num_datasets):
-                    boot_fit_concs[n].append([])
-                    for m in range(self.num_var_concs):
-                        boot_fit_concs[n][-1].append(concs[n*self.num_var_concs+m])
-            reg_info['boot_fit_ks'] = np.array(boot_fit_ks)
-            reg_info['boot_fit_concs'] = np.array(boot_fit_concs)
+            reg_info['boot_fit_ks'], reg_info['boot_fit_concs'] = (
+                    self._bootstrap(N_boot, datasets, results['fun'],
+                                    results['x'], parameter_constants,
+                                    monitor))
 
         return reg_info
 
@@ -267,39 +318,42 @@ class KineticModel:
         """Returns upper and lower confidence intervals for bootstrapped
         statistics, as an ndarray.
         """
-        k_CIs = np.percentile(reg_info['boot_fit_ks'], [(100-CI)/2, (100+CI)/2], 
-                axis=0)
-        conc_CIs = np.percentile(reg_info['boot_fit_concs'][dataset_n], 
+        k_CIs = np.percentile(
+                    reg_info['boot_fit_ks'], [(100-CI)/2, (100+CI)/2], axis=0)
+        conc_CIs = np.percentile(
+                reg_info['boot_fit_concs'][dataset_n],
                 [(100-CI)/2, (100+CI)/2], axis=0)
-        
+
         return k_CIs, conc_CIs
 
-    def bootstrap_plot_CIs(self, reg_info, dataset_n, CI, num_points, 
-            time_exp_factor):
+    def bootstrap_plot_CIs(self, reg_info, dataset_n, CI, num_points,
+                           time_exp_factor):
         """Returns upper and lower confidence intervals for bootstrapped
         statistics, as an ndarray.
         """
         max_time = max(reg_info['dataset_times'][dataset_n])*time_exp_factor
         # print(reg_info['boot_fit_concs'][dataset_n])
-        boot_results = np.empty((0, num_points, self.num_concs))
+        boot_results = np.empty((0, num_points, self.num_concs0))
         for n in range(reg_info['boot_num']):
-            _, boot_plot, _ = self.simulate(reg_info['boot_fit_ks'][n], 
-                    reg_info['boot_fit_concs'][dataset_n][n], num_points, 
+            _, boot_plot, _ = self.simulate(
+                    reg_info['boot_fit_ks'][n],
+                    reg_info['boot_fit_concs'][dataset_n][n], num_points,
                     max_time, integrate=False)
             boot_results = np.append(boot_results, [boot_plot], axis=0)
 
         return np.percentile(boot_results, [(100-CI)/2, (100+CI)/2], axis=0)
 
-    def _solved_kin_sys(self, starting_concs, ks, times):
+    def _solved_kin_sys(self, conc0, ks, times):
         """Solves the system of differential equations for given values
-        of the parameters (ks) and starting concentrations (starting_concs)
+        of the parameters (ks) and starting concentrations (conc0)
         for a given set of time points (times).
 
         """
-        return scipy.integrate.odeint(self.kin_sys, starting_concs, times, 
-                args=tuple(ks), mxstep=self.MAX_STEPS)
+        return scipy.integrate.odeint(
+                self.kin_sys, conc0, times, args=tuple(ks),
+                mxstep=self.MAX_STEPS)
 
-    def _residual(self, parameters, datasets, monitor=False): 
+    def _residual(self, parameters, datasets, constants, monitor=False):
         """Calculates the residuals (as a np array) at a given time for
         a given set of parameters, passed as a list.
 
@@ -309,52 +363,135 @@ class KineticModel:
         represents initial concentrations that will not be optimized.
 
         """
-        ks = parameters[:self.num_ks]
-
         num_datasets = len(datasets)
-        var_concs_list = parameters[self.num_ks:]
-        var_concs_per_dataset = len(var_concs_list)//num_datasets
-        assert len(var_concs_list) % num_datasets == 0
 
-        var_concs = []
+        ks_var = parameters[:self.num_var_ks]
+        var_concs0_list = parameters[self.num_var_ks:]
+        var_concs0_per_dataset = len(var_concs0_list)//num_datasets
+        assert len(var_concs0_list) % num_datasets == 0
+        var_concs0 = []
         for n in range(num_datasets):
-            current_concs = []
-            for m in range(var_concs_per_dataset):
-                current_concs.append(var_concs_list[n*var_concs_per_dataset+m])
-            var_concs.append(current_concs)
+            var_concs0.append(self._dataset_concs(n, var_concs0_list,
+                              var_concs0_per_dataset))
 
-        residuals = [] # List of residuals.
+        ks_const = constants[:self.num_const_ks]
+        const_concs0_list = constants[self.num_const_ks:]
+        const_concs0_per_dataset = len(const_concs0_list)//num_datasets
+        assert len(const_concs0_list) % num_datasets == 0
+        const_concs0 = []
+        for n in range(num_datasets):
+            const_concs0.append(self._dataset_concs(n, const_concs0_list,
+                                const_concs0_per_dataset))
+
+        all_ks = np.append(ks_var, ks_const)
+
+        residuals = []  # List of residuals.
         for d in range(num_datasets):
-            start_concs = np.append(var_concs[d], self.starting_concs_constant)
-            calcd_concs = self._solved_kin_sys(start_concs, ks, 
-                    datasets[d].times)
+            start_concs0 = np.append(var_concs0[d], const_concs0[d])
+            calcd_concs = self._solved_kin_sys(start_concs0, all_ks,
+                                               datasets[d].times)
 
-            for n,r in itertools.product(range(datasets[d].num_times), 
-                    range(self.num_concs)):
+            for n, r in itertools.product(range(datasets[d].num_times),
+                                          range(self.num_concs0)):
                 # Ignores values for which there is no experimental data
                 # point. Will do all exp concs for a given time point
                 # before moving on to next time.
-                if not np.isnan(datasets[d].concs[n,r]):
-                    residuals.append((datasets[d].concs[n,r] - calcd_concs[n,r])
-                            *self.weight_func(datasets[d].concs[n,r]))
+                if not np.isnan(datasets[d].concs[n, r]):
+                    residuals.append(
+                            (datasets[d].concs[n, r] - calcd_concs[n, r])
+                            * self.weight_func(datasets[d].concs[n, r]))
 
         # Print the sum of squares of the residuals to stdout, for the
         # purpose of monitoring progress.
         if monitor:
             print(f"Current ssr (weighted): {sum([n**2 for n in residuals])}")
-        
+
         return np.array(residuals)
+
+    def _bootstrap(self, N, datasets, residuals, fit_params, constants,
+                   monitor):
+        """Calculates errors using a non-parametric bootstrap method. A
+        random residual is added to each data point and the resulting
+        "boot_dataset" is refit. Errors are obtained from taking
+        confidence intervals from the resulting datasets. Only executed
+        if N_boot >= 2 (makes no sense otherwise), should be much
+        larger.
+
+        """
+        num_datasets = len(datasets)
+        boot_params = np.empty(
+                (0, self.num_var_ks+self.num_var_concs0*num_datasets))
+        for i in range(N):
+            if monitor:
+                print(f"Bootstrapping iteration {i+1} of {N}")
+
+            # Perturbed datasets that can be fit.
+            boot_datasets = []
+            for d in datasets:
+                new_concs = np.empty((0, self.num_concs0))
+                new_concs_t0 = []
+                # Leave starting conc 0's as 0's. These are not
+                # unknowns.
+                for conc in d.concs[0]:
+                    if not np.isnan(conc) and conc != 0:
+                        new_concs_t0.append(
+                                conc + np.random.choice(residuals)
+                                / self.weight_func(conc)
+                                * np.random.choice((-1, 1)))
+                    else:
+                        new_concs_t0.append(conc)
+                new_concs = np.append(new_concs, [new_concs_t0], axis=0)
+
+                for n in range(1, d.num_times):
+                    new_concs_t = []
+                    for conc in d.concs[n]:
+                        if not np.isnan(conc):
+                            new_concs_t.append(
+                                    conc + np.random.choice(residuals)
+                                    / self.weight_func(conc)
+                                    * np.random.choice((-1, 1)))
+                        else:
+                            new_concs_t.append(np.nan)
+                    new_concs = np.append(new_concs, [np.array(new_concs_t)],
+                                          axis=0)
+
+                boot_datasets.append(Dataset(times=d.times, concs=new_concs))
+
+            boot_results = scipy.optimize.least_squares(
+                    self._residual, fit_params, bounds=self.bounds,
+                    args=(boot_datasets, constants, False))
+            boot_params = np.append(boot_params, [boot_results['x']], axis=0)
+
+        boot_fit_ks = []
+        boot_fit_concs = [[] for _ in range(num_datasets)]
+        for p in boot_params:
+            boot_fit_ks.append(list(p[:self.num_var_ks]))
+
+            for n in range(num_datasets):
+                boot_fit_concs[n].append(self._dataset_concs(
+                        n, list(p[self.num_var_ks:]), self.num_var_concs0))
+
+        return np.array(boot_fit_ks), np.array(boot_fit_concs)
+
+    @staticmethod
+    def _dataset_concs(n, c_list, c_per_n):
+        """Returns the concentrations corresponding to a specific
+        dataset n from a list of concs for all datasets.
+
+        """
+
+        return c_list[(n*c_per_n):(n*c_per_n + c_per_n)]
 
     @staticmethod
     def get_model(model_name, new_model=None):
-        """Returns the model object corresponding to model_name, with 
+        """Returns the model object corresponding to model_name, with
         the option of specifying an additional file with new models.
         """
         if new_model:
             sys.path.append(os.getcwd())
             new_model = __import__(new_model).model
             models = {**default_models, **{new_model.name: new_model}}
-        else:    
+        else:
             models = default_models
 
         try:

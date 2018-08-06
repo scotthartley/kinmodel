@@ -1,5 +1,5 @@
 #! /usr/bin/env python3
-"""Executable script to simulate kinetic data using the KineticModel 
+"""Executable script to simulate kinetic data using the KineticModel
 class.
 
 """
@@ -8,37 +8,45 @@ import itertools
 import argparse
 import kinmodel
 
-
 PAR_ERR_TEXT = "Invalid parameter input format"
 RANGE_IND = ".."
 
 parser = argparse.ArgumentParser()
-parser.add_argument("model_name",
+parser.add_argument(
+    "model_name",
     help=("Name of model to use (see fit_kinetics.py -h for list of default "
-            "models)"))
-parser.add_argument("time",
+          "models)"))
+parser.add_argument(
+    "time",
     help="Total time for simulation",
     type=float)
-parser.add_argument("parameters",
+parser.add_argument(
+    "parameters",
     help="List of parameters for model",
     nargs="+")
-parser.add_argument("-f", "--filename",
+parser.add_argument(
+    "-f", "--filename",
     help="Root filename for output (no extension)")
-parser.add_argument("-n", "--sim_number",
+parser.add_argument(
+    "-n", "--sim_number",
     help="Number of simulations (for parameter ranges, default 2^n)",
     type=int)
-parser.add_argument("-m", "--new_model",
+parser.add_argument(
+    "-m", "--new_model",
     help=("Filename of module containing additional models; "
-            "must be in working directory, omit .py extension"),
+          "must be in working directory, omit .py extension"),
     default=None)
-parser.add_argument("-tp", "--text_output_points",
+parser.add_argument(
+    "-tp", "--text_output_points",
     help=("Number of points for curves in text output (not pdf) "
-            "(default = 3000)"),
+          "(default = 3000)"),
     type=int, default=3000)
-parser.add_argument("-so", "--summary_output",
+parser.add_argument(
+    "-so", "--summary_output",
     help="Excludes conc vs time data from text output",
     action='store_true')
-parser.add_argument("-pp", "--plot_output_points",
+parser.add_argument(
+    "-pp", "--plot_output_points",
     help="Number of points for curves in output (pdf) (default = 1000)",
     type=int, default=1000)
 args = parser.parse_args()
@@ -58,7 +66,7 @@ else:
 
 if sims_per_range == 1:
     raise ValueError("Too few simulations specified for number of ranged "
-            "parameters.")
+                     "parameters.")
 
 parameters = []
 for parameter in args.parameters:
@@ -66,8 +74,8 @@ for parameter in args.parameters:
     if len(parameter_range) == 1:
         try:
             parameters.append([float(parameter_range[0])])
-        except:
-            raise ValueError(PAR_ERR_TEXT)
+        except ValueError:
+            print(PAR_ERR_TEXT)
     elif len(parameter_range) == 2:
         try:
             p0 = float(parameter_range[0])
@@ -76,8 +84,8 @@ for parameter in args.parameters:
             parameters.append([])
             for n in range(sims_per_range):
                 parameters[-1].append(p0 + delta*n)
-        except:
-            raise ValueError(PAR_ERR_TEXT)
+        except ValueError:
+            print(PAR_ERR_TEXT)
     else:
         raise ValueError(PAR_ERR_TEXT)
 
@@ -90,14 +98,14 @@ for parameter_set in itertools.product(*parameters):
     concs = list(parameter_set[model.num_ks:])
     if args.filename:
         filename = args.filename + f"_{set_num:0{index_digits}}"
-    else: 
+    else:
         filename = None
     kinmodel.simulate_and_output(
-            model = model, 
-            ks = ks, 
-            concs = concs, 
-            time = args.time, 
-            text_num_points = args.text_output_points, 
-            plot_num_points = args.plot_output_points, 
-            filename = filename, 
-            text_full_output = not args.summary_output)
+            model=model,
+            ks=ks,
+            concs=concs,
+            time=args.time,
+            text_num_points=args.text_output_points,
+            plot_num_points=args.plot_output_points,
+            filename=filename,
+            text_full_output=not args.summary_output)

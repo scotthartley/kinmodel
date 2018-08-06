@@ -1,8 +1,10 @@
-"""Loads the default models defined in kinmodel.models in the 
+"""Loads the default models defined in kinmodel.models in the
 default_models dictionary.
 
 """
-import pkgutil, os, importlib
+import pkgutil
+import os
+import importlib
 import kinmodel.models
 
 pkgpath = os.path.dirname(kinmodel.models.__file__)

@@ -3,7 +3,8 @@ given kinetic model and output the results.
 
 """
 import platform
-import numpy as np, scipy
+import numpy as np
+import scipy
 from matplotlib import pyplot as plt, rcParams
 from . import _version
 from .Dataset import Dataset
@@ -25,11 +26,12 @@ rcParams['legend.fontsize'] = 6
 
 # Prevent line breaking and format numbers from np
 np.set_printoptions(linewidth=np.nan)
-np.set_printoptions(precision=2,suppress=True)
+np.set_printoptions(precision=2, suppress=True)
 
 
-def prepare_text(model, reg_info, dataset_n, num_points, time_exp_factor, 
-        filename="", boot_CI=95, full_simulation=True, more_stats=False):
+def prepare_text(
+        model, reg_info, ds_num, num_points, time_exp_factor, filename="",
+        boot_CI=95, full_simulation=True, more_stats=False):
     """Generates the output text.
 
     The number of points (num_points) for the output simulation and
@@ -37,38 +39,40 @@ def prepare_text(model, reg_info, dataset_n, num_points, time_exp_factor,
 
     """
     smooth_ts_out, smooth_curves_out, integrals = model.simulate(
-            reg_info['fit_ks'], 
-            reg_info['fit_concs'][dataset_n], 
-            num_points, 
-            time_exp_factor*max(reg_info['dataset_times'][dataset_n]))
+            reg_info['fit_ks'] + reg_info['fixed_ks'],
+            reg_info['fit_concs'][ds_num] + reg_info['fixed_concs'][ds_num],
+            num_points,
+            time_exp_factor*max(reg_info['dataset_times'][ds_num]))
 
     num_ks = len(reg_info['fit_ks'])
-    num_concs = len(reg_info['fit_concs'][dataset_n])
+    num_concs = len(reg_info['fit_concs'][ds_num])
     # Starting index for dataset-specific concentration parameters.
-    conc_start_index = num_ks + num_concs*dataset_n
+    conc0_i = num_ks + num_concs*ds_num
 
-    dataset_params = reg_info['fit_ks'] + reg_info['fit_concs'][dataset_n]
+    dataset_params = reg_info['fit_ks'] + reg_info['fit_concs'][ds_num]
+    dataset_consts = reg_info['fixed_ks'] + reg_info['fixed_concs'][ds_num]
 
-    cov_stddevs = (reg_info['cov_errors'][:num_ks].tolist()
-            + reg_info['cov_errors'][conc_start_index:conc_start_index+num_concs].tolist())
+    cov_stddevs = (
+            reg_info['cov_errors'][:num_ks].tolist()
+            + reg_info['cov_errors'][conc0_i:conc0_i+num_concs].tolist())
     if 'boot_num' in reg_info and boot_CI:
-        boot_k_CIs, boot_conc_CIs = model.bootstrap_param_CIs(reg_info, 
-                dataset_n, boot_CI)
+        boot_k_CIs, boot_conc_CIs = model.bootstrap_param_CIs(
+                reg_info, ds_num, boot_CI)
         param_CIs = np.append(boot_k_CIs, boot_conc_CIs, axis=1)
 
     # List of all parameter names, for labeling matrices with all fit
     # parameters included (not just the ones specific to this dataset).
-    all_parameter_names = model.parameter_names[:num_ks]
-    all_parameter_names += ['']*num_concs*dataset_n
-    all_parameter_names += model.parameter_names[num_ks:]
-    all_parameter_names += ['']*num_concs*(reg_info['num_datasets']-dataset_n-1)
+    all_par_names = model.parameter_names[:num_ks]
+    all_par_names += ['']*num_concs*ds_num
+    all_par_names += model.parameter_names[num_ks:]
+    all_par_names += ['']*num_concs*(reg_info['num_datasets']-ds_num-1)
 
-    if reg_info['dataset_names'][dataset_n]:
+    if reg_info['dataset_names'][ds_num]:
         title = ("Regression results for dataset "
-                f"{reg_info['dataset_names'][dataset_n]} "
-                f"from file \"{filename}\"")
+                 f"{reg_info['dataset_names'][ds_num]} "
+                 f"from file \"{filename}\"")
     else:
-        title = f"Regression results for file \"{filename}\"" 
+        title = f"Regression results for file \"{filename}\""
 
     text = title + "\n"
     text += "="*len(title) + "\n"
@@ -95,16 +99,23 @@ def prepare_text(model, reg_info, dataset_n, num_points, time_exp_factor,
     if 'boot_num' in reg_info and boot_CI:
         for n in range(len(dataset_params)):
             text += (f"{model.parameter_names[n]:>{model.len_params}} "
-                    f"= {dataset_params[n]:+5e} "
-                    f"± {(param_CIs[1][n]-param_CIs[0][n])/2:.1e} "
-                    f"({param_CIs[0][n]:+5e}, {param_CIs[1][n]:+5e})\n")
+                     f"= {dataset_params[n]:+5e} "
+                     f"± {(param_CIs[1][n]-param_CIs[0][n])/2:.1e} "
+                     f"({param_CIs[0][n]:+5e}, {param_CIs[1][n]:+5e})\n")
         text += "\n"
         text += (f"Errors are {boot_CI}% confidence intervals from "
-                f"bootstrapping ({reg_info['boot_num']} permutations).\n")
+                 f"bootstrapping ({reg_info['boot_num']} permutations).\n")
     else:
-        for n in range(len(dataset_params)):
+        for n in range(model.num_params):
             text += (f"{model.parameter_names[n]:>{model.len_params}} "
-                    f"= {dataset_params[n]:+5e}\n")
+                     f"= {dataset_params[n]:+5e}\n")
+    text += "\n"
+
+    text += "Fixed parameters:\n"
+    text += "\n"
+    for n in range(model.num_consts):
+        text += (f"{model.constant_names[n]:>{model.len_consts}} "
+                 f"= {dataset_consts[n]:+5e}\n")
     text += "\n"
 
     text += "Regression info:\n"
@@ -112,7 +123,8 @@ def prepare_text(model, reg_info, dataset_n, num_points, time_exp_factor,
     text += f"Success: {reg_info['success']}\n"
     text += f"Message: {reg_info['message']}\n"
 
-    text += f"Total points (dof): {reg_info['total_points']} ({reg_info['dof']})\n"
+    text += (f"Total points (dof): {reg_info['total_points']} "
+             f"({reg_info['dof']})\n")
     text += f"Sum square residuals (weighted): {reg_info['ssr']:.2e}\n"
     text += f"Sum square residuals (unweighted): {reg_info['pure_ssr']:.2e}\n"
     text += f"RMSD (unweighted): {reg_info['pure_rmsd']:.2e}\n"
@@ -121,25 +133,27 @@ def prepare_text(model, reg_info, dataset_n, num_points, time_exp_factor,
     if more_stats:
         text += "Covariance matrix:\n"
         for n in range(reg_info['total_params']):
-            text += (f"{all_parameter_names[n]:>{model.len_params}} " 
-                    + " ".join(f"{m:+.2e}" for m in reg_info['pcov'][n]) + "\n")
+            text += (f"{all_par_names[n]:>{model.len_params}} "
+                     + " ".join(f"{m:+.2e}" for m in reg_info['pcov'][n])
+                     + "\n")
         text += "\n"
-        
+
         text += "Parameter σ from covariance matrix (√diagonal):\n"
         text += " ".join(f"{m:+.1e}" for m in cov_stddevs) + "\n"
         text += "\n"
 
         text += "Correlation matrix:\n"
         for n in range(reg_info['total_params']):
-            text += (f"{all_parameter_names[n]:>{model.len_params}} " 
-                    + " ".join(f"{m:+.2f}" for m in reg_info['corr'][n]) + "\n")
+            text += (f"{all_par_names[n]:>{model.len_params}} "
+                     + " ".join(f"{m:+.2f}" for m in reg_info['corr'][n])
+                     + "\n")
         text += "\n"
     text += "\n"
 
     text += "Simulation\n"
     text += "----------\n"
     text += (f"Points used to generate integrals and concentration vs time "
-            f"data: {num_points}\n")
+             f"data: {num_points}\n")
     text += "\n"
 
     if integrals:
@@ -148,26 +162,29 @@ def prepare_text(model, reg_info, dataset_n, num_points, time_exp_factor,
         for n in integrals:
             integral_label = "∫ " + n + " dt"
             text += (f"{integral_label:>{model.len_int_eqn_desc+5}} "
-                    f"= {integrals[n]:+5e}\n")
+                     f"= {integrals[n]:+5e}\n")
         text += "\n"
 
     if full_simulation:
         text += "Results:\n"
         text += "\n"
         if 'boot_num' in reg_info and boot_CI:
-            boot_CI_data = model.bootstrap_plot_CIs(reg_info, dataset_n, 
-                    boot_CI, num_points, time_exp_factor)
+            boot_CI_data = model.bootstrap_plot_CIs(
+                    reg_info, ds_num, boot_CI, num_points, time_exp_factor)
             text += ("t " + " ".join(model.legend_names) + " "
-                    + " ".join(f"{n}CI− {n}CI+" for n in model.legend_names)
-                    + "\n")
+                     + " ".join(f"{n}CI− {n}CI+" for n in model.legend_names)
+                     + "\n")
             for n in range(len(smooth_ts_out)):
-                best_fit_points = " ".join(str(m) for m in smooth_curves_out[n])
-                CI_points = " ".join([f"{str(pCI)} {str(mCI)}" 
-                        for pCI,mCI in zip(boot_CI_data[0][n], boot_CI_data[1][n])])
-                text += (str(smooth_ts_out[n]) + " " + best_fit_points + " " + CI_points + "\n")
+                best_fit_points = " ".join(
+                        str(m) for m in smooth_curves_out[n])
+                CI_points = " ".join(
+                        [f"{str(pCI)} {str(mCI)}" for pCI, mCI in
+                         zip(boot_CI_data[0][n], boot_CI_data[1][n])])
+                text += (str(smooth_ts_out[n]) + " " + best_fit_points + " "
+                         + CI_points + "\n")
         else:
             text += "t " + " ".join(model.legend_names) + "\n"
-            
+
             for n in range(len(smooth_ts_out)):
                 text += str(smooth_ts_out[n]) + " " + " ".join(
                     str(m) for m in smooth_curves_out[n]) + "\n"
@@ -175,23 +192,26 @@ def prepare_text(model, reg_info, dataset_n, num_points, time_exp_factor,
     return text
 
 
-def generate_plot(model, reg_info, dataset_n, num_points, time_exp_factor, 
-            output_filename, boot_CI=95):
+def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
+                  output_filename, boot_CI=95):
     """Generates the output plot.
 
     Number of points must be specified. Saved as pdf to output_filename.
 
     """
-    dataset_params = reg_info['fit_ks'] + reg_info['fit_concs'][dataset_n]
-    max_time = max(reg_info['dataset_times'][dataset_n])*time_exp_factor
+    dataset_params = reg_info['fit_ks'] + reg_info['fit_concs'][ds_num]
+    dataset_consts = reg_info['fixed_ks'] + reg_info['fixed_concs'][ds_num]
 
-    smooth_ts_plot, smooth_curves_plot, _ = model.simulate(reg_info['fit_ks'], 
-            reg_info['fit_concs'][dataset_n], 
+    max_time = max(reg_info['dataset_times'][ds_num])*time_exp_factor
+
+    smooth_ts_plot, smooth_curves_plot, _ = model.simulate(
+            reg_info['fit_ks'] + reg_info['fixed_ks'],
+            reg_info['fit_concs'][ds_num] + reg_info['fixed_concs'][ds_num],
             num_points, max_time, integrate=False)
 
     if 'boot_num' in reg_info and boot_CI:
-        boot_CI_plots = model.bootstrap_plot_CIs(reg_info, dataset_n, 
-                boot_CI, num_points, time_exp_factor)
+        boot_CI_plots = model.bootstrap_plot_CIs(
+                reg_info, ds_num, boot_CI, num_points, time_exp_factor)
 
     if model.top_plot:
         plt.figure(figsize=FIGURE_SIZE_2)
@@ -201,9 +221,10 @@ def generate_plot(model, reg_info, dataset_n, num_points, time_exp_factor,
     if model.top_plot:
         plt.subplot(211)
         col = 0
-        for n in ([np.array(reg_info['dataset_concs'][dataset_n]).T[m] 
-                for m in model.top_plot]):
-            plt.scatter(reg_info['dataset_times'][dataset_n], n, c=COLORS[col], 
+        for n in ([np.array(reg_info['dataset_concs'][ds_num]).T[m]
+                   for m in model.top_plot]):
+            plt.scatter(
+                    reg_info['dataset_times'][ds_num], n, c=COLORS[col],
                     s=MARKER_SIZE, linewidths=0)
             col += 1
 
@@ -236,10 +257,10 @@ def generate_plot(model, reg_info, dataset_n, num_points, time_exp_factor,
             plt.subplot(111)
 
         col = 0
-        for n in ([np.array(reg_info['dataset_concs'][dataset_n]).T[m] 
-                for m in model.bottom_plot]):
-            plt.scatter(reg_info['dataset_times'][dataset_n], n, c=COLORS[col], 
-                    s=MARKER_SIZE, linewidths=0, zorder=2)
+        for n in ([np.array(reg_info['dataset_concs'][ds_num]).T[m]
+                   for m in model.bottom_plot]):
+            plt.scatter(reg_info['dataset_times'][ds_num], n, c=COLORS[col],
+                        s=MARKER_SIZE, linewidths=0, zorder=2)
             col += 1
 
         col = 0
@@ -267,44 +288,57 @@ def generate_plot(model, reg_info, dataset_n, num_points, time_exp_factor,
 
         # Print parameters on plot.
         pars_to_print = ""
-        for n in range(len(dataset_params)):
-            pars_to_print += "{} = {:.2e}\n".format(model.parameter_names[n], 
-                    dataset_params[n])
-        plt.text(0.5, 0.2, pars_to_print, transform=plt.gca().transAxes, fontsize=6)
-    
+        for n in range(model.num_params):
+            pars_to_print += "{} = {:.2e}\n".format(model.parameter_names[n],
+                                                    dataset_params[n])
+        for n in range(model.num_consts):
+            pars_to_print += "{} = {:.2e}\n".format(model.constant_names[n],
+                                                    dataset_consts[n])
+
+        plt.text(0.5, 0.2, pars_to_print, transform=plt.gca().transAxes,
+                 fontsize=6)
+
     plt.tight_layout()
     plt.savefig(output_filename)
     plt.close()
 
 
-def fit_and_output(model, data_filename,
-            text_output_points=3000, text_time_extension_factor=3.0, 
-            text_output=True, plot_output_points=1000, 
-            plot_time_extension_factor=1.1, 
-            text_full_output=True, monitor=False, 
-            bootstrap_iterations=100, bootstrap_CI=95, more_stats=False):
+def fit_and_output(
+            model, data_filename, fixed_ks=None, fixed_concs=None,
+            k_guesses=None, conc_guesses=None, text_output_points=3000,
+            text_time_extension_factor=3.0, text_output=True,
+            plot_output_points=1000, plot_time_extension_factor=1.1,
+            text_full_output=True, monitor=False,
+            bootstrap_iterations=100, bootstrap_CI=95,
+            more_stats=False):
     """Carry out the fit of the model and output the data.
 
     """
     datasets = Dataset.read_raw_data(model, data_filename)
 
-    reg_info = model.fit_to_model(datasets, monitor=monitor, 
-        N_boot=bootstrap_iterations)        
+    reg_info = model.fit_to_model(
+            datasets, ks_guesses=k_guesses,
+            conc0_guesses=conc_guesses, ks_const=fixed_ks,
+            conc0_const=fixed_concs, monitor=monitor,
+            N_boot=bootstrap_iterations)
 
     for n in range(reg_info['num_datasets']):
-        output_text = prepare_text(model, reg_info, n, text_output_points, 
-                text_time_extension_factor, data_filename, bootstrap_CI, 
+        output_text = prepare_text(
+                model, reg_info, n, text_output_points,
+                text_time_extension_factor, data_filename, bootstrap_CI,
                 text_full_output, more_stats)
         if text_output:
-            text_output_filename = f"{data_filename}_{model.name}_{reg_info['dataset_names'][n]}.txt"
-            with open(text_output_filename, 'w', encoding='utf-8') as write_file:
+            text_filename = (f"{data_filename}_{model.name}"
+                             f"_{reg_info['dataset_names'][n]}.txt")
+            with open(text_filename, 'w', encoding='utf-8') as write_file:
                 print(output_text, file=write_file)
         else:
             print(output_text)
 
     if plot_output_points:
         for n in range(reg_info['num_datasets']):
-            plot_output_filename = f"{data_filename}_{model.name}_{reg_info['dataset_names'][n]}.pdf"
-            generate_plot(model, reg_info, n, plot_output_points, 
-                    plot_time_extension_factor, plot_output_filename, 
-                    bootstrap_CI)
+            plot_filename = (f"{data_filename}_{model.name}_"
+                             f"{reg_info['dataset_names'][n]}.pdf")
+            generate_plot(model, reg_info, n, plot_output_points,
+                          plot_time_extension_factor, plot_filename,
+                          bootstrap_CI)

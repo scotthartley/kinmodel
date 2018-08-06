@@ -23,22 +23,36 @@ rcParams['axes.linewidth'] = 0.5
 rcParams['legend.frameon'] = False
 rcParams['legend.fontsize'] = 6
 
+
+def _resolve_parameters(model, ks, concs):
+    if len(ks) == model.num_var_ks:
+        all_ks = ks + model.ks_constant
+    elif len(ks) == model.num_ks:
+        all_ks = ks
+    else:
+        raise ValueError("Incorrect number of k's specified.")
+
+    if len(concs) == model.num_var_concs0:
+        all_concs = concs + model.conc0_constant
+    elif len(concs) == model.num_concs0:
+        all_concs = concs
+    else:
+        raise ValueError("Incorrect number of concentrations specified.")
+
+    return all_ks, all_concs
+
+
 def prepare_text(model, ks, concs, time, num_points, full_output):
     """Generates the output text.
 
     """
-    sim_ts, sim_concs, integrals = model.simulate(ks, concs, num_points, time, 
-            integrate=True)
+    sim_ts, sim_concs, integrals = model.simulate(ks, concs, num_points, time,
+                                                  integrate=True)
 
-    if len(concs) == model.num_var_concs:
-        parameters = ks + concs + model.starting_concs_constant
-    elif len(concs) == model.num_concs:
-        parameters = ks + concs
-    else:
-        raise ValueError("Incorrect number of concentrations specified.")
+    all_ks, all_concs = _resolve_parameters(model, ks, concs)
 
-    title = f"Simulation of model {model.name}" 
-    
+    title = f"Simulation of model {model.name}"
+
     text = title + "\n"
     text += "="*len(title) + "\n"
     text += f"Python version: {platform.python_version()}\n"
@@ -55,12 +69,22 @@ def prepare_text(model, ks, concs, time, num_points, full_output):
     text += "\n"
     text += "\n"
 
-
     text += "Parameters\n"
     text += "----------\n"
-    for n in range(len(model.parameter_names)):
-        text += (f"{model.parameter_names[n]:>{model.len_params}} = "
-                f"{parameters[n]:+.5e}\n")
+    width = max(model.len_params, model.len_consts)
+    for n in range(model.num_var_ks):
+        text += (f"{model.k_var_names[n]:>{width}} = "
+                 f"{all_ks[n]:+.5e}\n")
+    for n in range(model.num_const_ks):
+        text += (f"{model.k_const_names[n]:>{width}} = "
+                 f"{all_ks[model.num_var_ks+n]:+.5e}\n")
+    for n in range(model.num_var_concs0):
+        text += (f"{model.conc0_var_names[n]:>{width}} = "
+                 f"{all_concs[n]:+.5e}\n")
+    for n in range(model.num_var_concs0):
+        text += (f"{model.conc0_const_names[n]:>{width}} = "
+                 f"{all_concs[model.num_var_concs0+n]:+.5e}\n")
+
     text += "\n"
     text += "\n"
 
@@ -75,28 +99,28 @@ def prepare_text(model, ks, concs, time, num_points, full_output):
         for n in integrals:
             integral_label = "∫ " + n + " dt"
             text += (f"{integral_label:>{model.len_int_eqn_desc+5}} "
-                    f"= {integrals[n]:+.5e}\n")
+                     f"= {integrals[n]:+.5e}\n")
         text += "\n"
-
 
     text += "Concentration Extremes:\n"
     text += "\n"
-    for n in range(model.num_concs):
+    for n in range(model.num_concs0):
         text += (f"{model.legend_names[n]:>{model.len_legend}} min: "
-                f"{sim_concs[:,n].min():+.3e}\n")
+                 f"{sim_concs[:,n].min():+.3e}\n")
         text += (f"{model.legend_names[n]:>{model.len_legend}} max: "
-                f"{sim_concs[:,n].max():+.3e}\n")
+                 f"{sim_concs[:,n].max():+.3e}\n")
     text += "\n"
 
     if full_output:
         text += "Results:\n"
         text += "\n"
-        text += "t " + " ".join(model.legend_names) + "\n"    
+        text += "t " + " ".join(model.legend_names) + "\n"
         for n in range(len(sim_ts)):
             text += str(sim_ts[n]) + " " + " ".join(
                 str(m) for m in sim_concs[n]) + "\n"
 
     return text
+
 
 def generate_plot(model, ks, concs, time, num_points, output_filename):
     """Generates the output plot.
@@ -105,15 +129,10 @@ def generate_plot(model, ks, concs, time, num_points, output_filename):
 
     """
 
-    if len(concs) == model.num_var_concs:
-        parameters = ks + concs + model.starting_concs_constant
-    elif len(concs) == model.num_concs:
-        parameters = ks + concs
-    else:
-        raise ValueError("Incorrect number of concentrations specified.")
+    smooth_ts_plot, smooth_curves_plot, _ = model.simulate(
+            ks, concs, num_points, time, integrate=False)
 
-    smooth_ts_plot, smooth_curves_plot, _ = model.simulate(ks, 
-            concs, num_points, time, integrate=False)
+    all_ks, all_concs = _resolve_parameters(model, ks, concs)
 
     if model.top_plot:
         plt.figure(figsize=FIGURE_SIZE_2)
@@ -153,26 +172,36 @@ def generate_plot(model, ks, concs, time, num_points, output_filename):
         plt.xlabel(XLABEL)
         plt.ylabel(YLABEL)
 
-        # Print parameters on plot.
         pars_to_print = ""
-        for n in range(model.num_ks + model.num_concs):
-            pars_to_print += f"{model.parameter_names[n]} = {parameters[n]:.2e}\n"
-        plt.text(0.5, 0.2, pars_to_print, transform=plt.gca().transAxes, 
-                fontsize=6)
-    
+        for n in range(model.num_var_ks):
+            pars_to_print += (f"{model.k_var_names[n]} = "
+                              f"{all_ks[n]:+.2e}\n")
+        for n in range(model.num_const_ks):
+            pars_to_print += (f"{model.k_const_names[n]} = "
+                              f"{all_ks[model.num_var_ks+n]:+.2e}\n")
+        for n in range(model.num_var_concs0):
+            pars_to_print += (f"{model.conc0_var_names[n]} = "
+                              f"{all_concs[n]:+.2e}\n")
+        for n in range(model.num_var_concs0):
+            pars_to_print += (f"{model.conc0_const_names[n]} = "
+                              f"{all_concs[model.num_var_concs0+n]:+.2e}\n")
+        plt.text(0.5, 0.2, pars_to_print, transform=plt.gca().transAxes,
+                 fontsize=rcParams['legend.fontsize'])
+
     plt.tight_layout()
     plt.savefig(output_filename)
     plt.close()
 
-def simulate_and_output(model, ks, concs, time, text_num_points, 
-        plot_num_points, filename=None, text_full_output=True):
+
+def simulate_and_output(model, ks, concs, time, text_num_points,
+                        plot_num_points, filename=None, text_full_output=True):
     """Carry out the simulation of the model and output the data.
 
     """
-    
+
     if text_num_points:
-        output_text = prepare_text(model, ks, concs, time, text_num_points, 
-                text_full_output)
+        output_text = prepare_text(model, ks, concs, time, text_num_points,
+                                   text_full_output)
         if filename:
             with open(f"{filename}.txt", 'w', encoding='utf-8') as write_file:
                 print(output_text, file=write_file)
@@ -180,4 +209,5 @@ def simulate_and_output(model, ks, concs, time, text_num_points,
             print(output_text)
 
     if plot_num_points and filename:
-        generate_plot(model, ks, concs, time, plot_num_points, f"{filename}.pdf")
+        generate_plot(model, ks, concs, time, plot_num_points,
+                      f"{filename}.pdf")

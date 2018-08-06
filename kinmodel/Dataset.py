@@ -4,6 +4,7 @@
 import string
 import numpy as np
 
+
 class Dataset:
     def __init__(self, name="", times=None, concs=None):
         self.name = name
@@ -21,10 +22,10 @@ class Dataset:
     @property
     def max_time(self):
         return max(self.times)
-    
+
     @classmethod
     def read_raw_data(cls, model, data_filename) -> ['Dataset']:
-        """Load data from file, formated as a csv file. 
+        """Load data from file, formated as a csv file.
 
         File is assumed to have the following structure:
             - Rows with only the first cell filled with a string (not
@@ -41,7 +42,7 @@ class Dataset:
             try:
                 float(s)
                 return True
-            except:
+            except ValueError:
                 return False
 
         with open(data_filename) as datafile:
@@ -56,7 +57,7 @@ class Dataset:
                     # Line contains data
                     curr_ds_times.append(float(curline[0]))
                     line_concs = []
-                    for n in range(model.num_concs):
+                    for n in range(model.num_concs0):
                         if n+1 < len(curline):
                             if curline[n+1] != "":
                                 line_concs.append(float(curline[n+1]))
@@ -74,10 +75,12 @@ class Dataset:
                         curr_ds_times = []
                         curr_ds_concs = []
                         datasets.append(cls())
-                        datasets[-1].name = "".join(c for c in curline[0] if c in string.printable)
+                        datasets[-1].name = "".join(
+                                c for c in curline[0] if c in string.printable)
                     else:
                         # This is the first dataset
-                        datasets[-1].name = "".join(c for c in curline[0] if c in string.printable)
+                        datasets[-1].name = "".join(
+                                c for c in curline[0] if c in string.printable)
             # Record times for last dataset
             all_times.append(curr_ds_times)
             all_concs.append(curr_ds_concs)
@@ -87,8 +90,8 @@ class Dataset:
                 datasets[s].times = np.array(all_times[s])
                 unsorted_data = np.array(all_concs[s])
                 sorted_data = np.empty_like(unsorted_data)
-                for n in range(model.num_concs):
-                    sorted_data[:,n] = unsorted_data[:,model.sort_order[n]]
+                for n in range(model.num_concs0):
+                    sorted_data[:, n] = unsorted_data[:, model.sort_order[n]]
                 datasets[s].concs = sorted_data
 
-        return datasets    
+        return datasets

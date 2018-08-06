@@ -62,32 +62,50 @@ the following form:
    import textwrap
    from kinmodel import KineticModel
 
-   def equations(concs, t, *ks):
-       S1, S2, S3 = concs
-       k1, k2, k3 = ks
 
-       return [ - k1*S1 + k2S2,
-                + k1*S1 - k2*S2 - k3*S3,
-                + k3*S2 ]
+   def equations(concs, t, *ks):
+       Ac, E, U, An = concs
+       k1, k_2, K = ks
+
+       return [(- k1*Ac*E - (k1*Ac**2*E)/(Ac+K) - (k_2*An*Ac)/(Ac+K) + k_2*An
+                + (k1*K*Ac*E)/(Ac+K) + (k_2*K*An)/(Ac+K)),
+               - k1*Ac*E,
+               + k1*Ac*E,
+               - k_2*An + (k1*Ac**2*E)/(Ac+K) + (k_2*An*Ac)/(Ac+K)]
+
 
    model = KineticModel(
-       name = "test_model",
-       description = textwrap.dedent("""\
-           Simple kinetic model:
+       name="shared_int_ss",
+       description=textwrap.dedent("""\
+           Simple model with shared acylpyridinium intermediate:
 
-               S1 <==> S2 (k1, k2)
-               S2 ---> S3 (k3)"""),
-       kin_sys = equations,
-       ks_guesses = [0.02, 0.02, 0.1],
-       starting_concs_guesses = [20],
-       starting_concs_constant = [0, 0],
-       parameter_names = ["k1", "k2", "k3", "[S1]0", "[S2]0", "[S3]0"],
-       legend_names = ["S1", "S2", "S3"],
-       top_plot = [1],
-       bottom_plot = [2, 3],
-       sort_order = [1, 2, 3],
-       int_eqn = [],
-       int_eqn_desc = [],
+               Ac + E ---> I + U  (k1)
+               I + Ac <==> An     (k2, k-2)
+                    I ---> Ac     (k3)
+
+               Steady-state approximation with K=k3/k2"""),
+       kin_sys=equations,
+       ks_guesses=[0.02, 0.03, 10],
+       ks_constant=[],
+       conc0_guesses=[50, 50],
+       conc0_constant=[0, 0],
+       k_var_names=["k1", "k-2", "K"],
+       k_const_names=[],
+       conc0_var_names=["[Acid]0", "[EDC]0"],
+       conc0_const_names=["[U]0", "[An]0"],
+       legend_names=["Acid", "EDC", "Urea", "Anhydride"],
+       top_plot=[1, 2],
+       bottom_plot=[0, 3],
+       sort_order=[1, 3, 2, 0],
+       int_eqn=[
+               lambda cs, ks: (ks[0]*cs[0]**2*cs[1])/(cs[0]+ks[2]),
+               lambda cs, ks: ks[1]*cs[3],
+               lambda cs, ks: (ks[1]*cs[3]*cs[0])/(cs[0]+ks[2]), ],
+       int_eqn_desc=[
+               "(k1*Ac^2*E)/(Ac+K)",
+               "k_2*An",
+               "(k_2*An*Ac)/(Ac+K)",
+       ]
        )
 
 Note that the concentrations (concs) with variable starting

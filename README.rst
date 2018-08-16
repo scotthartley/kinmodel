@@ -27,30 +27,30 @@ Use
 
 At this point, primary interaction with kinmodel will probably be
 through the fit_kinetics.py executable. Basic usage is of the form
-``fit_kinetics.py model_name exp_data.csv``, where ``model_name``
-defines the kinetic model to be applied and ``exp_data.csv`` is a csv
-file containing experimental concentration vs time data for relevant
-species. The csv file can contain multiple experiments that will be
-fitted simultaneously for all rate constants. Experiments are separated
-by title lines that must contain a title in column 1 that cannot be
+``fit_kinetics model_name exp_data.csv``, where ``model_name`` defines
+the kinetic model to be applied and ``exp_data.csv`` is a csv file
+containing experimental concentration vs time data for relevant species.
+The csv file can contain multiple experiments that will be fitted
+simultaneously for all rate constants. Experiments are separated by
+title lines that must contain a title in column 1 that cannot be
 interpreted as a number followed by empty cells for the remaining
 columns.
 
 The program will output txt files of the fit parameters and pdf files of
 plots. At present, it produces up to two subplots so different species
 can be visualized separately. There are a number of command line
-options. Help is available via ``fit_kinetics.py -h``.
+options. Help is available via ``fit_kinetics -h``.
 
 Data can also be simulated given a set of parameters using the
 model_kinetics.py executable. The format is
-``model_kinetics.py model_name simulation_time par1 par2 par3 ...``.
+``model_kinetics model_name simulation_time par1 par2 par3 ...``.
 Default starting concentrations associated with the model can be
 overridden by including them at the end of the parameters list. Options
 can be specified to control the output. Ranges for the parameters can be
 set along with an optional target number of simulations (``-n``): in
 this case, the ranges will be divided into equal segments such that the
 total number of simulations is at most the target. More information is
-available from ``model_kinetics.py -h``.
+available from ``model_kinetics -h``.
 
 Some models are included as part of the default installation, but new
 ones can be defined in a separate dictionary stored in filename.py and

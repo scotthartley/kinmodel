@@ -193,7 +193,7 @@ def prepare_text(
 
 
 def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
-                  output_filename, boot_CI=95):
+                  output_filename, boot_CI=95, common_y=True):
     """Generates the output plot.
 
     Number of points must be specified. Saved as pdf to output_filename.
@@ -245,7 +245,11 @@ def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
 
         plt.legend([model.legend_names[n] for n in model.top_plot], loc=4)
 
-        plt.ylim(ymin=0)
+        if common_y:
+            ymax = max(reg_info['max_concs'][n] for n in model.top_plot)
+            plt.ylim(ymin=0, ymax=ymax)
+        else:
+            plt.ylim(ymin=0)
         plt.xlim(xmin=0, xmax=smooth_ts_plot[-1])
 
         plt.ylabel(YLABEL)
@@ -280,7 +284,11 @@ def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
 
         plt.legend([model.legend_names[n] for n in model.bottom_plot], loc=2)
 
-        plt.ylim(ymin=0)
+        if common_y:
+            ymax = max(reg_info['max_concs'][n] for n in model.bottom_plot)
+            plt.ylim(ymin=0, ymax=ymax)
+        else:
+            plt.ylim(ymin=0)
         plt.xlim(xmin=0, xmax=smooth_ts_plot[-1])
 
         plt.xlabel(XLABEL)
@@ -310,7 +318,7 @@ def fit_and_output(
             plot_output_points=1000, plot_time_extension_factor=1.1,
             text_full_output=True, monitor=False,
             bootstrap_iterations=100, bootstrap_CI=95,
-            more_stats=False):
+            more_stats=False, common_y=True):
     """Carry out the fit of the model and output the data.
 
     """
@@ -341,4 +349,4 @@ def fit_and_output(
                              f"{reg_info['dataset_names'][n]}.pdf")
             generate_plot(model, reg_info, n, plot_output_points,
                           plot_time_extension_factor, plot_filename,
-                          bootstrap_CI)
+                          bootstrap_CI, common_y)

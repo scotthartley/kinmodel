@@ -250,6 +250,13 @@ class KineticModel:
         reg_info['dataset_concs'] = [d.concs.tolist() for d in datasets]
         reg_info['num_datasets'] = num_datasets
 
+        max_concs = [0]*self.num_concs0
+        for d in datasets:
+            for n in range(self.num_concs0):
+                if np.nanmax(d.concs[:, n]) > max_concs[n]:
+                    max_concs[n] = np.nanmax(d.concs[:, n])
+        reg_info['max_concs'] = max_concs
+
         reg_info['fit_ks'] = list(results['x'][:self.num_var_ks])
         fit_concs = list(results['x'][self.num_var_ks:])
         reg_info['fit_concs'] = []

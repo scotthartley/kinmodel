@@ -100,6 +100,10 @@ def fit_kinetics():
         help=("Silence verbose output during fit (prints sum square residuals "
               "and bootstrap progress)"),
         action='store_true')
+    parser.add_argument(
+        "-cy", "--common_y",
+        help=("All plots share same max y axis values"),
+        action='store_true')
     args = parser.parse_args()
 
     model = kinmodel.KineticModel.get_model(args.model_name, args.new_model)
@@ -131,4 +135,5 @@ def fit_kinetics():
             monitor=not args.no_verbose,
             bootstrap_iterations=args.bootstrap_iterations,
             bootstrap_CI=args.confidence_interval,
-            more_stats=args.more_stats)
+            more_stats=args.more_stats,
+            common_y=args.common_y)

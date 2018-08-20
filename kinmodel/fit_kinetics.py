@@ -104,6 +104,10 @@ def fit_kinetics():
         "-cy", "--common_y",
         help=("All plots share same max y axis values"),
         action='store_true')
+    parser.add_argument(
+        "-u", "--units",
+        help=("Time and concentration units, each as a single word"),
+        nargs=2, type=str)
     args = parser.parse_args()
 
     model = kinmodel.KineticModel.get_model(args.model_name, args.new_model)
@@ -136,4 +140,5 @@ def fit_kinetics():
             bootstrap_iterations=args.bootstrap_iterations,
             bootstrap_CI=args.confidence_interval,
             more_stats=args.more_stats,
-            common_y=args.common_y)
+            common_y=args.common_y,
+            units=args.units)

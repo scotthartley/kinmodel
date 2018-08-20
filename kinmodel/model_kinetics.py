@@ -51,6 +51,10 @@ def model_kinetics():
         "-pp", "--plot_output_points",
         help="Number of points for curves in output (pdf) (default = 1000)",
         type=int, default=1000)
+    parser.add_argument(
+        "-u", "--units",
+        help=("Time and concentration units, each as a single word"),
+        nargs=2, type=str)
     args = parser.parse_args()
 
     num_ranges = len([t for t in args.parameters if RANGE_IND in t])
@@ -110,4 +114,5 @@ def model_kinetics():
                 text_num_points=args.text_output_points,
                 plot_num_points=args.plot_output_points,
                 filename=filename,
-                text_full_output=not args.summary_output)
+                text_full_output=not args.summary_output,
+                units=args.units)

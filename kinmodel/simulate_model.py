@@ -122,7 +122,8 @@ def prepare_text(model, ks, concs, time, num_points, full_output):
     return text
 
 
-def generate_plot(model, ks, concs, time, num_points, output_filename):
+def generate_plot(model, ks, concs, time, num_points, output_filename,
+                  units=None):
     """Generates the output plot.
 
     Saved as pdf to output_filename.
@@ -151,7 +152,10 @@ def generate_plot(model, ks, concs, time, num_points, output_filename):
         plt.ylim(ymin=0)
         plt.xlim(xmin=0, xmax=smooth_ts_plot[-1])
 
-        plt.ylabel(YLABEL)
+        if units:
+            plt.ylabel(f"{YLABEL} ({units[1]})")
+        else:
+            plt.ylabel(YLABEL)
 
     if model.bottom_plot:
         if model.top_plot:
@@ -169,8 +173,12 @@ def generate_plot(model, ks, concs, time, num_points, output_filename):
         plt.ylim(ymin=0)
         plt.xlim(xmin=0, xmax=smooth_ts_plot[-1])
 
-        plt.xlabel(XLABEL)
-        plt.ylabel(YLABEL)
+        if units:
+            plt.xlabel(f"{XLABEL} ({units[0]})")
+            plt.ylabel(f"{YLABEL} ({units[1]})")
+        else:
+            plt.xlabel(XLABEL)
+            plt.ylabel(YLABEL)
 
         pars_to_print = ""
         for n in range(model.num_var_ks):
@@ -194,7 +202,8 @@ def generate_plot(model, ks, concs, time, num_points, output_filename):
 
 
 def simulate_and_output(model, ks, concs, time, text_num_points,
-                        plot_num_points, filename=None, text_full_output=True):
+                        plot_num_points, filename=None, text_full_output=True,
+                        units=None):
     """Carry out the simulation of the model and output the data.
 
     """
@@ -210,4 +219,4 @@ def simulate_and_output(model, ks, concs, time, text_num_points,
 
     if plot_num_points and filename:
         generate_plot(model, ks, concs, time, plot_num_points,
-                      f"{filename}.pdf")
+                      f"{filename}.pdf", units)

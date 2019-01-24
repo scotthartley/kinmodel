@@ -104,8 +104,9 @@ the following form:
        int_eqn_desc=[
                "(k1*Ac^2*E)/(Ac+K)",
                "k_2*An",
-               "(k_2*An*Ac)/(Ac+K)",
-       ]
+               "(k_2*An*Ac)/(Ac+K)",] ,
+       lifetime_conc=[3],
+       rectime_conc=[0],
        )
 
 Note that the concentrations (concs) with variable starting

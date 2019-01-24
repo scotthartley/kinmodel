@@ -102,7 +102,7 @@ def prepare_text(model, ks, concs, time, num_points, full_output):
                      f"= {integrals[n]:+.5e}\n")
         text += "\n"
 
-    text += "Concentration Extremes:\n"
+    text += "Concentration extremes:\n"
     text += "\n"
     for n in range(model.num_concs0):
         text += (f"{model.legend_names[n]:>{model.len_legend}} min: "
@@ -110,6 +110,38 @@ def prepare_text(model, ks, concs, time, num_points, full_output):
         text += (f"{model.legend_names[n]:>{model.len_legend}} max: "
                  f"{sim_concs[:,n].max():+.3e}\n")
     text += "\n"
+
+    if model.lifetime_conc:
+        text += "Lifetimes:\n"
+        text += "\n"
+        for n in model.lifetime_conc:
+            conc_list = sim_concs[:,n]
+            max_conc = conc_list.max()
+            max_ind = conc_list.argmax()
+            for f in model.lifetime_fracs:
+                target_conc = max_conc*f
+                target_ind = (np.abs(conc_list[max_ind:] -
+                              target_conc).argmin() + max_ind)
+                target_time = sim_ts[target_ind]
+                text += (f"{model.legend_names[n]:>{model.len_legend}} t to "
+                         f"{f*100:6.2f}% of max: {target_time:+.3e}\n")
+        text += "\n"
+
+    if model.rectime_conc:
+        text += "Recovery times:\n"
+        text += "\n"
+        for n in model.rectime_conc:
+            conc_list = sim_concs[:,n]
+            initial_conc = conc_list[0]
+            min_ind = conc_list.argmin()
+            for f in model.rectime_fracs:
+                target_conc = initial_conc*f
+                target_ind = (np.abs(conc_list[min_ind:] -
+                              target_conc).argmin() + min_ind)
+                target_time = sim_ts[target_ind]
+                text += (f"{model.legend_names[n]:>{model.len_legend}} t to "
+                         f"{f*100:6.2f}% of initial: {target_time:+.3e}\n")
+        text += "\n"
 
     if full_output:
         text += "Results:\n"

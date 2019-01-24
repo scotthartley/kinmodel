@@ -47,5 +47,7 @@ model = KineticModel(
     int_eqn_desc=[
         "(k1*Ac^2*E)/(Ac+K2+K1*Ac+K1*K2)",
         "k_4*An",
-        "(k_4*Ac*An)/(Ac+K2)", ]
+        "(k_4*Ac*An)/(Ac+K2)", ],
+    lifetime_conc=[3],
+    rectime_conc=[0],
     )

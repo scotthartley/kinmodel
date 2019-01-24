@@ -39,5 +39,7 @@ model = KineticModel(
     bottom_plot=[0, 3],
     sort_order=[1, 3, 2, 0],
     int_eqn=[],
-    int_eqn_desc=[]
+    int_eqn_desc=[],
+    lifetime_conc=[3],
+    rectime_conc=[0],
     )

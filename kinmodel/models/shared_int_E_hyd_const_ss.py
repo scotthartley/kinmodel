@@ -50,5 +50,8 @@ model = KineticModel(
             "k_2*An",
             "(k_2*An*Ac)/(Ac+K)",
             "k1*E*Ac",
-            "k4*E", ]
+            "k4*E", ],
+    lifetime_conc=[3],
+    rectime_conc=[0],
+    rectime_conc=[0],
     )

@@ -72,6 +72,10 @@ class KineticModel:
                  int_eqn_desc=[],
                  weight_func=lambda exp: 1,
                  bounds=(0, np.inf),
+                 lifetime_conc=[],
+                 lifetime_fracs=[1, 1/2.71828, 0.1, 0.01],
+                 rectime_conc=[],
+                 rectime_fracs=[0.99],
                  ):
 
         self.name = name
@@ -93,6 +97,10 @@ class KineticModel:
         self.int_eqn_desc = int_eqn_desc
         self.weight_func = weight_func
         self.bounds = bounds
+        self.lifetime_conc = lifetime_conc
+        self.lifetime_fracs = lifetime_fracs
+        self.rectime_conc = rectime_conc
+        self.rectime_fracs = rectime_fracs
 
     @property
     def num_concs0(self):

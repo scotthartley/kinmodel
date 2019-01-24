@@ -41,5 +41,7 @@ model = KineticModel(
             lambda cs, ks: ks[1]*cs[4]*cs[0], ],
     int_eqn_desc=[
             "k_2*An",
-            "k2*I*Ac", ]
+            "k2*I*Ac", ],
+    lifetime_conc=[3],
+    rectime_conc=[0],
     )

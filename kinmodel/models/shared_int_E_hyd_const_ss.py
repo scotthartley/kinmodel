@@ -53,5 +53,4 @@ model = KineticModel(
             "k4*E", ],
     lifetime_conc=[3],
     rectime_conc=[0],
-    rectime_conc=[0],
     )

@@ -10,18 +10,19 @@ from . import _version
 
 # Parameters and settings for plots.
 COLORS = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
-MARKER_SIZE = 6
-FIGURE_SIZE_1 = (2.2, 1.9)
-FIGURE_SIZE_2 = (2.2, 3.5)
+FIGURE_SIZE_1 = (3.3, 3)
+FIGURE_SIZE_2 = (3.3, 5.2)
 YLABEL = "C"
 XLABEL = "t"
-rcParams['font.size'] = 6
-rcParams['font.family'] = 'sans-serif'
-rcParams['font.sans-serif'] = ['Arial']
-rcParams['lines.linewidth'] = 0.5
-rcParams['axes.linewidth'] = 0.5
-rcParams['legend.frameon'] = False
-rcParams['legend.fontsize'] = 6
+PARAM_LOC = [0.65, 0.1]
+
+PLT_PARAMS = {'font.size': 8,
+              'font.family': 'sans-serif',
+              'font.sans-serif': ['Arial'],
+              'lines.linewidth': 0.75,
+              'axes.linewidth': 0.75,
+              'legend.frameon': False,
+              'legend.fontsize': 6}
 
 
 def _resolve_parameters(model, ks, concs):
@@ -161,6 +162,7 @@ def generate_plot(model, ks, concs, time, num_points, output_filename,
     Saved as pdf to output_filename.
 
     """
+    rcParams.update(PLT_PARAMS)
 
     smooth_ts_plot, smooth_curves_plot, _ = model.simulate(
             ks, concs, num_points, time, integrate=False)
@@ -225,7 +227,7 @@ def generate_plot(model, ks, concs, time, num_points, output_filename,
         for n in range(model.num_var_concs0):
             pars_to_print += (f"{model.conc0_const_names[n]} = "
                               f"{all_concs[model.num_var_concs0+n]:+.2e}\n")
-        plt.text(0.5, 0.2, pars_to_print, transform=plt.gca().transAxes,
+        plt.text(PARAM_LOC[0], PARAM_LOC[1], pars_to_print, transform=plt.gca().transAxes,
                  fontsize=rcParams['legend.fontsize'])
 
     plt.tight_layout()
@@ -235,10 +237,13 @@ def generate_plot(model, ks, concs, time, num_points, output_filename,
 
 def simulate_and_output(model, ks, concs, time, text_num_points,
                         plot_num_points, filename=None, text_full_output=True,
-                        units=None):
+                        units=None, plot_time=None):
     """Carry out the simulation of the model and output the data.
 
     """
+
+    if not plot_time:
+        plot_time = time
 
     if text_num_points:
         output_text = prepare_text(model, ks, concs, time, text_num_points,
@@ -250,5 +255,5 @@ def simulate_and_output(model, ks, concs, time, text_num_points,
             print(output_text)
 
     if plot_num_points and filename:
-        generate_plot(model, ks, concs, time, plot_num_points,
+        generate_plot(model, ks, concs, plot_time, plot_num_points,
                       f"{filename}.pdf", units)

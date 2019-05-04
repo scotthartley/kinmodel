@@ -1,27 +1,29 @@
 import textwrap
+import numpy as np
 from ..KineticModel import KineticModel
 
 
 def equations(concs, t, *ks):
     Ac, E, U, L, C = concs
-    k1, K, EM, k2L, k2C = ks
+    k1, K, EM, k2L, k2C, k3, k4, kE = ks
 
     p = Ac/(Ac+L)  # Approx fraction of diacid that is monomer.
 
     # Return the equations for Ac', E', U', L', C'
     return [(- k1*Ac*E/2 + k2L*L + k2C*C + k1*K*Ac*E/(K+Ac+p*EM)/2
              - k1*Ac**2*E/(K+Ac+p*EM)/2 - k1*p*EM*Ac*E/(K+Ac+p*EM)/2),
-            - k1*Ac*E,
-            + k1*Ac*E,
-            + k1*Ac**2*E/(K+Ac+p*EM) - k2L*L,
-            + k1*p*EM*Ac*E/(K+Ac+p*EM) - k2C*C]
+            - k1*Ac*E - kE*E,
+            + k1*Ac*E + kE*E,
+            + k1*Ac**2*E/(K+Ac+p*EM) - k2L*L - k3*(1-p)*Ac + k4*C*Ac,
+            + k1*p*EM*Ac*E/(K+Ac+p*EM) - k2C*C + k3*(1-p)*Ac - k4*C*Ac]
 
 
 model = KineticModel(
-    name="simple_diacid_ss",
+    name="DA_simple_Cyc_E_hyd_ss",
     description=textwrap.dedent("""\
         Simple model for diacid assembly with competing macrocyclization
-        and polymerization.
+        and polymerization, direct EDC hydrolysis, and cyclization of
+        longer diacids.
 
              DAn + E ---> In         (k1)
                   In ---> DAn + U    (kiAc)
@@ -29,6 +31,9 @@ model = KineticModel(
                   I0 ---> C + U      (kiC)
                DAn+m ---> DAn + DAm  (k2L)
                    C ---> DA0        (k2C)
+                 DAn ---> C + DAn-1  (k3)
+             C + DAn ---> DAn+1      (k4)
+                   E ---> U          (kE)
 
         where DAn is a diacid of length n, In is the activated
         intermediate of length n, U is the urea, C is the macrocycle.
@@ -41,11 +46,11 @@ model = KineticModel(
         K = kiAc/kiL
         EM - kiC/kiL"""),
     kin_sys=equations,
-    ks_guesses=[0.02, 100, 10, 0.5, 1],
+    ks_guesses=[0.02, 100, 10, 0.5, 1, 0.1, 0.1, 0.1],
     ks_constant=[],
     conc0_guesses=[100, 400],
     conc0_constant=[0, 0, 0],
-    k_var_names=["k1", "K", "EM", "k2L", "k2C"],
+    k_var_names=["k1", "K", "EM", "k2L", "k2C", "k3", "k4", "kE"],
     k_const_names=[],
     conc0_var_names=["[Acid]0", "[EDC]0"],
     conc0_const_names=["[U]0", "[L]0", "[C]0"],

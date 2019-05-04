@@ -13,7 +13,7 @@ def equations(concs, t, *ks):
 
 
 model = KineticModel(
-    name="simple_monoacid_ss",
+    name="MA_simple_ss",
     description=textwrap.dedent("""\
         Simplest monoacid kinetic model:
 

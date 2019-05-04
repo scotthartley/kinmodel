@@ -15,7 +15,7 @@ def equations(concs, t, *ks):
 
 
 model = KineticModel(
-    name="shared_int_gb_ss",
+    name="MA_shared_int_gb_ss",
     description=textwrap.dedent("""\
         Simple model with shared acylpyridinium intermediate and direct general
         base catalysis of acylpyridinium intermediate by Ac (i.e., AcO-):

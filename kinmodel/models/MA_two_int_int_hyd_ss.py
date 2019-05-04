@@ -15,7 +15,7 @@ def equations(concs, t, *ks):
 
 
 model = KineticModel(
-    name="two_int_int_hyd_ss",
+    name="MA_two_int_int_hyd_ss",
     description=textwrap.dedent("""\
         Simple model with distinct intermediates and direct int hydrolysis:
 

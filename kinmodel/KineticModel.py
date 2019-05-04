@@ -14,6 +14,10 @@ import scipy.linalg
 from .Dataset import Dataset
 from .default_models import default_models
 
+INDIRECT_DESC_SPACER = "\n\nOriginal model:\n"
+
+np.set_printoptions(threshold=sys.maxsize)
+
 
 class KineticModel:
     """Defines a kinetic model (as a system of differential equations).
@@ -107,6 +111,10 @@ class KineticModel:
         return self.num_var_concs0 + self.num_const_concs0
 
     @property
+    def num_data_concs(self):
+        return self.num_concs0
+
+    @property
     def num_var_concs0(self):
         return len(self.conc0_guesses)
 
@@ -132,7 +140,7 @@ class KineticModel:
 
     @property
     def num_consts(self):
-        return self.num_const_ks + self.num_var_concs0
+        return self.num_const_ks + self.num_const_concs0
 
     @property
     def parameter_names(self):
@@ -202,7 +210,9 @@ class KineticModel:
 
     def fit_to_model(self, datasets, ks_guesses=None,
                      conc0_guesses=None, ks_const=None,
-                     conc0_const=None, N_boot=0, monitor=False):
+                     conc0_const=None, N_boot=0, monitor=False,
+                     boot_CI=95, boot_points=1000, boot_t_exp=1.1,
+                     boot_fixX=False):
         """Performs a fit to a set of datasets containing time and
         concentration data.
 
@@ -258,9 +268,9 @@ class KineticModel:
         reg_info['dataset_concs'] = [d.concs.tolist() for d in datasets]
         reg_info['num_datasets'] = num_datasets
 
-        max_concs = [0]*self.num_concs0
+        max_concs = [0]*self.num_data_concs
         for d in datasets:
-            for n in range(self.num_concs0):
+            for n in range(self.num_data_concs):
                 if np.nanmax(d.concs[:, n]) > max_concs[n]:
                     max_concs[n] = np.nanmax(d.concs[:, n])
         reg_info['max_concs'] = max_concs
@@ -278,23 +288,12 @@ class KineticModel:
             reg_info['fixed_concs'].append(
                     self._dataset_concs(n, fixed_concs, self.num_const_concs0))
 
-        # Residuals with weighting removed.
-        pure_residuals = []
+        reg_info['predicted_data'] = []
         for d in range(len(datasets)):
-            d_ks = np.append(
-                    reg_info['fit_ks'],
-                    parameter_constants[:self.num_const_ks])
-            d_concs = np.append(
-                    reg_info['fit_concs'][d],
-                    self._dataset_concs(
-                            d, parameter_constants[self.num_const_ks:],
-                            self.num_const_concs0))
-            solution = self._solved_kin_sys(d_concs, d_ks, datasets[d].times)
-            for n, m in itertools.product(
-                    range(datasets[d].num_times), range(self.num_concs0)):
-                if not np.isnan(datasets[d].concs[n, m]):
-                    pure_residuals.append(
-                            datasets[d].concs[n, m] - solution[n, m])
+            reg_info['predicted_data'].append(self._solved_kin_sys(
+                    reg_info['fit_concs'][d] + reg_info['fixed_concs'][d],
+                    reg_info['fit_ks'] + reg_info['fixed_ks'],
+                    reg_info['dataset_times'][d]))
 
         reg_info['success'] = results['success']
         reg_info['message'] = results['message']
@@ -307,7 +306,10 @@ class KineticModel:
         reg_info['m_ssq'] = reg_info['ssr']/reg_info['dof']
         reg_info['rmsd'] = reg_info['m_ssq']**0.5
 
-        reg_info['pure_ssr'] = sum(x**2 for x in pure_residuals)
+        pure_residuals = self._pure_residuals(datasets, reg_info,
+                                              parameter_constants)
+
+        reg_info['pure_ssr'] = np.nansum(np.square(pure_residuals))
         reg_info['pure_m_ssq'] = reg_info['pure_ssr']/reg_info['dof']
         reg_info['pure_rmsd'] = reg_info['pure_m_ssq']**0.5
 
@@ -323,12 +325,55 @@ class KineticModel:
 
         if N_boot > 1:
             reg_info['boot_num'] = N_boot
-            reg_info['boot_fit_ks'], reg_info['boot_fit_concs'] = (
-                    self._bootstrap(N_boot, datasets, results['fun'],
-                                    results['x'], parameter_constants,
-                                    monitor))
+            if boot_fixX:
+                reg_info['boot_fit_ks'], reg_info['boot_fit_concs'] = (
+                        self._bootstrap_fixedX(
+                                N_boot, reg_info['dataset_times'],
+                                reg_info['predicted_data'], pure_residuals,
+                                results['x'], parameter_constants, monitor))
+            else:
+                reg_info['boot_fit_ks'], reg_info['boot_fit_concs'] = (
+                        self._bootstrap_randomX(
+                                N_boot, datasets,
+                                results['x'], parameter_constants, monitor))
+            reg_info['boot_param_CIs'] = []
+            reg_info['boot_plot_CIs'] = []
+            reg_info['boot_plot_ts'] = []
+            for d in range(len(datasets)):
+                reg_info['boot_param_CIs'].append(self.bootstrap_param_CIs(
+                        reg_info, d, boot_CI))
+                boot_CIs, boot_ts = self.bootstrap_plot_CIs(
+                        reg_info, d, boot_CI, boot_points, boot_t_exp, monitor)
+                reg_info['boot_plot_CIs'].append(boot_CIs)
+                reg_info['boot_plot_ts'].append(boot_ts)
 
         return reg_info
+
+    def _pure_residuals(self, datasets, reg_info, parameter_constants):
+        """Returns unweighted residuals.
+        """
+        residuals = []
+        for d in range(len(datasets)):
+            residuals.append([])
+            d_ks = np.append(
+                    reg_info['fit_ks'],
+                    parameter_constants[:self.num_const_ks])
+            d_concs = np.append(
+                    reg_info['fit_concs'][d],
+                    self._dataset_concs(
+                            d, parameter_constants[self.num_const_ks:],
+                            self.num_const_concs0))
+            solution = self._solved_kin_sys(d_concs, d_ks, datasets[d].times)
+            for m in range(self.num_data_concs):
+                residuals[d].append([])
+                for n in range(datasets[d].num_times):
+                    if not np.isnan(datasets[d].concs[n, m]):
+                        residuals[d][m].append(
+                                datasets[d].concs[n, m] - solution[n, m])
+                    else:
+                        residuals[d][m].append(np.nan)
+
+        return np.array(residuals)
 
     def bootstrap_param_CIs(self, reg_info, dataset_n, CI):
         """Returns upper and lower confidence intervals for bootstrapped
@@ -343,21 +388,26 @@ class KineticModel:
         return k_CIs, conc_CIs
 
     def bootstrap_plot_CIs(self, reg_info, dataset_n, CI, num_points,
-                           time_exp_factor):
+                           time_exp_factor, monitor=False):
         """Returns upper and lower confidence intervals for bootstrapped
         statistics, as an ndarray.
         """
         max_time = max(reg_info['dataset_times'][dataset_n])*time_exp_factor
-        # print(reg_info['boot_fit_concs'][dataset_n])
-        boot_results = np.empty((0, num_points, self.num_concs0))
+        smooth_ts_out, _ = np.linspace(0, max_time, num_points, retstep=True)
+
+        boot_results = np.empty((0, num_points, self.num_data_concs))
         for n in range(reg_info['boot_num']):
+            if monitor:
+                print(f"Simulating bootstrap iteration {n+1} "
+                      f"of {reg_info['boot_num']}")
             _, boot_plot, _ = self.simulate(
                     reg_info['boot_fit_ks'][n],
                     reg_info['boot_fit_concs'][dataset_n][n], num_points,
                     max_time, integrate=False)
             boot_results = np.append(boot_results, [boot_plot], axis=0)
 
-        return np.percentile(boot_results, [(100-CI)/2, (100+CI)/2], axis=0)
+        return (np.percentile(boot_results, [(100-CI)/2, (100+CI)/2], axis=0),
+                smooth_ts_out)
 
     def _solved_kin_sys(self, conc0, ks, times):
         """Solves the system of differential equations for given values
@@ -408,7 +458,7 @@ class KineticModel:
                                                datasets[d].times)
 
             for n, r in itertools.product(range(datasets[d].num_times),
-                                          range(self.num_concs0)):
+                                          range(self.num_data_concs)):
                 # Ignores values for which there is no experimental data
                 # point. Will do all exp concs for a given time point
                 # before moving on to next time.
@@ -424,17 +474,23 @@ class KineticModel:
 
         return np.array(residuals)
 
-    def _bootstrap(self, N, datasets, residuals, fit_params, constants,
-                   monitor):
-        """Calculates errors using a non-parametric bootstrap method. A
-        random residual is added to each data point and the resulting
-        "boot_dataset" is refit. Errors are obtained from taking
-        confidence intervals from the resulting datasets. Only executed
-        if N_boot >= 2 (makes no sense otherwise), should be much
-        larger.
+    def _bootstrap_fixedX(self, N, times, model_ys, residuals, fit_params,
+                          constants, monitor):
+        """Calculates errors using a non-parametric fixed X bootstrap
+        method. A random residual is added to each predicted data point
+        and the resulting "boot_dataset" is refit. Errors are obtained
+        from taking confidence intervals from the resulting datasets.
+        Only executed if N_boot >= 2 (makes no sense otherwise), should
+        be much larger.
 
         """
-        num_datasets = len(datasets)
+        def rand_residual(residuals, d, c):
+            r = np.nan
+            while np.isnan(r):
+                r = np.random.choice(residuals[d][c])
+            return r
+
+        num_datasets = len(model_ys)
         boot_params = np.empty(
                 (0, self.num_var_ks+self.num_var_concs0*num_datasets))
         for i in range(N):
@@ -443,35 +499,97 @@ class KineticModel:
 
             # Perturbed datasets that can be fit.
             boot_datasets = []
-            for d in datasets:
-                new_concs = np.empty((0, self.num_concs0))
+            for d in range(num_datasets):
+                new_concs = np.empty((0, self.num_data_concs))
                 new_concs_t0 = []
                 # Leave starting conc 0's as 0's. These are not
                 # unknowns.
-                for conc in d.concs[0]:
+                for c in range(self.num_concs0):
+                    conc = model_ys[d][0][c]
                     if not np.isnan(conc) and conc != 0:
                         new_concs_t0.append(
-                                conc + np.random.choice(residuals)
-                                / self.weight_func(conc)
-                                * np.random.choice((-1, 1)))
+                                conc + rand_residual(residuals, d, c))
                     else:
                         new_concs_t0.append(conc)
                 new_concs = np.append(new_concs, [new_concs_t0], axis=0)
 
-                for n in range(1, d.num_times):
+                for n in range(1, len(model_ys[d])):
                     new_concs_t = []
-                    for conc in d.concs[n]:
+                    for c in range(len(model_ys[d][n])):
+                        conc = model_ys[d][n][c]
                         if not np.isnan(conc):
                             new_concs_t.append(
-                                    conc + np.random.choice(residuals)
-                                    / self.weight_func(conc)
-                                    * np.random.choice((-1, 1)))
+                                    conc + rand_residual(residuals, d, c))
                         else:
                             new_concs_t.append(np.nan)
                     new_concs = np.append(new_concs, [np.array(new_concs_t)],
                                           axis=0)
+                boot_datasets.append(Dataset(times=times[d], concs=new_concs))
 
-                boot_datasets.append(Dataset(times=d.times, concs=new_concs))
+            boot_results = scipy.optimize.least_squares(
+                    self._residual, fit_params, bounds=self.bounds,
+                    args=(boot_datasets, constants, False))
+            boot_params = np.append(boot_params, [boot_results['x']], axis=0)
+
+        boot_fit_ks = []
+        boot_fit_concs = [[] for _ in range(num_datasets)]
+        for p in boot_params:
+            boot_fit_ks.append(list(p[:self.num_var_ks]))
+
+            for n in range(num_datasets):
+                boot_fit_concs[n].append(self._dataset_concs(
+                        n, list(p[self.num_var_ks:]), self.num_var_concs0))
+
+        return np.array(boot_fit_ks), np.array(boot_fit_concs)
+
+    def _bootstrap_randomX(self, N, datasets, fit_params, constants,
+                           monitor=False, force1st=True):
+        """Calculates errors using a non-parametric random X bootstrap
+        method. Subsets of the data are generated by filling with
+        randomly chosen time points from the original data. The
+        resulting "boot_dataset" is refit. Errors are obtained from
+        taking confidence intervals from the resulting datasets. Only
+        executed if N_boot >= 2 (makes no sense otherwise), should be
+        much larger.
+
+        Parameter force1st toggles whether the first point is always
+        included in the subsets.
+
+        """
+        def sort_data(times, concs):
+            sorted_times = np.array(sorted(times))
+            sorted_concs = np.array([c for _, c in sorted(
+                    list(zip(times, concs)), key=lambda x: x[0])])
+            return sorted_times, sorted_concs
+
+        num_datasets = len(datasets)
+        boot_params = np.empty(
+                (0, self.num_var_ks+self.num_var_concs0*num_datasets))
+
+        for i in range(N):
+            if monitor:
+                print(f"Bootstrapping iteration {i+1} of {N}")
+
+            boot_datasets = []
+            for d in datasets:
+                if force1st:
+                    new_concs = np.array([d.concs[0]])
+                    new_times = np.array([d.times[0]])
+                    while len(new_times) < len(d.times):
+                        x = np.random.randint(1, d.num_times)
+                        new_concs = np.append(new_concs, [d.concs[x]], axis=0)
+                        new_times = np.append(new_times, [d.times[x]], axis=0)
+                else:
+                    new_concs = np.empty((0, self.num_data_concs))
+                    new_times = np.array([])
+                    for n in range(0, d.num_times):
+                        x = np.random.randint(0, d.num_times)
+                        new_concs = np.append(new_concs, [d.concs[x]], axis=0)
+                        new_times = np.append(new_times, [d.times[x]], axis=0)
+                sorted_times, sorted_concs = sort_data(new_times, new_concs)
+                boot_datasets.append(Dataset(
+                        times=sorted_times, concs=sorted_concs))
+
 
             boot_results = scipy.optimize.least_squares(
                     self._residual, fit_params, bounds=self.bounds,
@@ -516,3 +634,67 @@ class KineticModel:
             print(f'"{model_name}" is not a valid model.')
             print(", ".join(a for a in models), "are currently available.")
             sys.exit(1)
+
+
+class IndirectKineticModel(KineticModel):
+    """Defines an indirect kinetic model: one in which the observed data
+    does not map cleanly onto species' concentrations.
+
+    """
+
+    def __init__(self,
+                 name,
+                 parent_model_name,
+                 description,
+                 conc_mapping,
+                 legend_names,
+                 top_plot,
+                 bottom_plot,
+                 sort_order,
+                 int_eqn=[],
+                 int_eqn_desc=[],
+                 lifetime_conc=[],
+                 lifetime_fracs=[1, 1/2.71828, 0.1, 0.01],
+                 rectime_conc=[],
+                 rectime_fracs=[0.99],
+                 ):
+
+        self.parent_model = KineticModel.get_model(parent_model_name)
+        self.conc_mapping = conc_mapping
+
+        self.name = name
+        self.kin_sys = self.parent_model.kin_sys
+        self.description = (description
+                            + INDIRECT_DESC_SPACER
+                            + self.parent_model.description)
+        self.ks_guesses = self.parent_model.ks_guesses
+        self.ks_constant = self.parent_model.ks_constant
+        self.conc0_guesses = self.parent_model.conc0_guesses
+        self.conc0_constant = self.parent_model.conc0_constant
+        self.k_var_names = self.parent_model.k_var_names
+        self.k_const_names = self.parent_model.k_const_names
+        self.conc0_var_names = self.parent_model.conc0_var_names
+        self.conc0_const_names = self.parent_model.conc0_const_names
+        self.legend_names = legend_names
+        self.top_plot = top_plot
+        self.bottom_plot = bottom_plot
+        self.sort_order = sort_order
+        self.int_eqn = int_eqn
+        self.int_eqn_desc = int_eqn_desc
+        self.weight_func = self.parent_model.weight_func
+        self.bounds = self.parent_model.bounds
+        self.lifetime_conc = lifetime_conc
+        self.lifetime_fracs = lifetime_fracs
+        self.rectime_conc = rectime_conc
+        self.rectime_fracs = rectime_fracs
+
+    @property
+    def num_data_concs(self):
+        return len(self.legend_names)
+
+    def _solved_kin_sys(self, conc0, ks, times):
+        parent_model_soln = scipy.integrate.odeint(
+                self.kin_sys, conc0, times, args=tuple(ks),
+                mxstep=self.MAX_STEPS)
+
+        return self.conc_mapping(parent_model_soln)

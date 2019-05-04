@@ -49,8 +49,8 @@ def fit_kinetics():
     parser.add_argument(
         "-w", "--weight_min_conc",
         help=("Triggers weighted regression relative to the concentration, "
-              "with the argument used as the floor (i.e., \"-w 2\" implies "
-              "that concentrations will be weighted by 1/c, with 2 as the "
+              "with the argument used as the floor (i.e., \"-w 5\" implies "
+              "that concentrations will be weighted by 1/c, with 5 as the "
               "min concentration used.)"),
         type=float)
     parser.add_argument(
@@ -108,6 +108,11 @@ def fit_kinetics():
         "-u", "--units",
         help=("Time and concentration units, each as a single word"),
         nargs=2, type=str)
+    parser.add_argument(
+        "-nd", "--no_simulate_direct",
+        help=("For indirect fitting, controls whether the direct model is "
+              "simulated"),
+        action='store_true')
     args = parser.parse_args()
 
     model = kinmodel.KineticModel.get_model(args.model_name, args.new_model)
@@ -141,4 +146,5 @@ def fit_kinetics():
             bootstrap_CI=args.confidence_interval,
             more_stats=args.more_stats,
             common_y=args.common_y,
-            units=args.units)
+            units=args.units,
+            simulate=not args.no_simulate_direct)

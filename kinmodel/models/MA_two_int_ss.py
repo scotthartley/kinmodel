@@ -14,7 +14,7 @@ def equations(concs, t, *ks):
 
 
 model = KineticModel(
-    name="two_int_ss",
+    name="MA_two_int_ss",
     description=textwrap.dedent("""\
         Simple model with distinct intermediates:
 

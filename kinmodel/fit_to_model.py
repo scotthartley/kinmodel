@@ -8,21 +8,25 @@ import scipy
 from matplotlib import pyplot as plt, rcParams
 from . import _version
 from .Dataset import Dataset
+from .simulate_model import simulate_and_output
+from .KineticModel import IndirectKineticModel
 
 # Parameters and settings for plots.
 COLORS = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
-MARKER_SIZE = 6
-FIGURE_SIZE_1 = (2.2, 1.9)
-FIGURE_SIZE_2 = (2.2, 3.5)
+MARKER_SIZE = 12
+FIGURE_SIZE_1 = (3.3, 3)
+FIGURE_SIZE_2 = (3.3, 5.2)
 YLABEL = "C"
 XLABEL = "t"
-rcParams['font.size'] = 6
-rcParams['font.family'] = 'sans-serif'
-rcParams['font.sans-serif'] = ['Arial']
-rcParams['lines.linewidth'] = 0.5
-rcParams['axes.linewidth'] = 0.5
-rcParams['legend.frameon'] = False
-rcParams['legend.fontsize'] = 6
+PARAM_LOC = [0.65, 0.1]
+
+PLT_PARAMS = {'font.size': 8,
+              'font.family': 'sans-serif',
+              'font.sans-serif': ['Arial'],
+              'lines.linewidth': 0.75,
+              'axes.linewidth': 0.75,
+              'legend.frameon': False,
+              'legend.fontsize': 6}
 
 # Prevent line breaking and format numbers from np
 np.set_printoptions(linewidth=np.nan)
@@ -56,8 +60,7 @@ def prepare_text(
             reg_info['cov_errors'][:num_ks].tolist()
             + reg_info['cov_errors'][conc0_i:conc0_i+num_concs].tolist())
     if 'boot_num' in reg_info and boot_CI:
-        boot_k_CIs, boot_conc_CIs = model.bootstrap_param_CIs(
-                reg_info, ds_num, boot_CI)
+        boot_k_CIs, boot_conc_CIs = reg_info['boot_param_CIs'][ds_num]
         param_CIs = np.append(boot_k_CIs, boot_conc_CIs, axis=1)
 
     # List of all parameter names, for labeling matrices with all fit
@@ -169,8 +172,12 @@ def prepare_text(
         text += "Results:\n"
         text += "\n"
         if 'boot_num' in reg_info and boot_CI:
-            boot_CI_data = model.bootstrap_plot_CIs(
-                    reg_info, ds_num, boot_CI, num_points, time_exp_factor)
+            # boot_CI_data = model.bootstrap_plot_CIs(
+            #         reg_info, ds_num, boot_CI, num_points, time_exp_factor)
+            assert (list(reg_info['boot_plot_ts'][ds_num])
+                    == list(smooth_ts_out)), ("Simulation and bootstrap"
+                                              "points do not line up!")
+            boot_CI_data = reg_info['boot_plot_CIs'][ds_num]
             text += ("t " + " ".join(model.legend_names) + " "
                      + " ".join(f"{n}CI− {n}CI+" for n in model.legend_names)
                      + "\n")
@@ -199,6 +206,8 @@ def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
     Number of points must be specified. Saved as pdf to output_filename.
 
     """
+    rcParams.update(PLT_PARAMS)
+
     dataset_params = reg_info['fit_ks'] + reg_info['fit_concs'][ds_num]
     dataset_consts = reg_info['fixed_ks'] + reg_info['fixed_concs'][ds_num]
 
@@ -210,8 +219,10 @@ def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
             num_points, max_time, integrate=False)
 
     if 'boot_num' in reg_info and boot_CI:
-        boot_CI_plots = model.bootstrap_plot_CIs(
-                reg_info, ds_num, boot_CI, num_points, time_exp_factor)
+        # boot_CI_plots = model.bootstrap_plot_CIs(
+        #         reg_info, ds_num, boot_CI, num_points, time_exp_factor)
+        boot_CI_plots = reg_info['boot_plot_CIs'][ds_num]
+        boot_ts = reg_info['boot_plot_ts'][ds_num]
 
     if model.top_plot:
         plt.figure(figsize=FIGURE_SIZE_2)
@@ -236,11 +247,11 @@ def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
         if 'boot_num' in reg_info and boot_CI:
             col = 0
             for n in [boot_CI_plots[0].T[m] for m in model.top_plot]:
-                plt.plot(smooth_ts_plot, n, COLORS[col] + ':')
+                plt.plot(boot_ts, n, COLORS[col] + ':')
                 col += 1
             col = 0
             for n in [boot_CI_plots[1].T[m] for m in model.top_plot]:
-                plt.plot(smooth_ts_plot, n, COLORS[col] + ':')
+                plt.plot(boot_ts, n, COLORS[col] + ':')
                 col += 1
 
         plt.legend([model.legend_names[n] for n in model.top_plot], loc=4)
@@ -278,11 +289,11 @@ def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
         if 'boot_num' in reg_info and boot_CI:
             col = 0
             for n in [boot_CI_plots[0].T[m] for m in model.bottom_plot]:
-                plt.plot(smooth_ts_plot, n, COLORS[col] + ':')
+                plt.plot(boot_ts, n, COLORS[col] + ':')
                 col += 1
             col = 0
             for n in [boot_CI_plots[1].T[m] for m in model.bottom_plot]:
-                plt.plot(smooth_ts_plot, n, COLORS[col] + ':')
+                plt.plot(boot_ts, n, COLORS[col] + ':')
                 col += 1
 
         plt.legend([model.legend_names[n] for n in model.bottom_plot], loc=2)
@@ -310,8 +321,8 @@ def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
             pars_to_print += "{} = {:.2e}\n".format(model.constant_names[n],
                                                     dataset_consts[n])
 
-        plt.text(0.5, 0.2, pars_to_print, transform=plt.gca().transAxes,
-                 fontsize=6)
+        plt.text(PARAM_LOC[0], PARAM_LOC[1], pars_to_print, transform=plt.gca().transAxes,
+                 fontsize=rcParams['legend.fontsize'])
 
     plt.tight_layout()
     plt.savefig(output_filename)
@@ -325,7 +336,7 @@ def fit_and_output(
             plot_output_points=1000, plot_time_extension_factor=1.1,
             text_full_output=True, monitor=False,
             bootstrap_iterations=100, bootstrap_CI=95,
-            more_stats=False, common_y=True, units=None):
+            more_stats=False, common_y=True, units=None, simulate=True):
     """Carry out the fit of the model and output the data.
 
     """
@@ -335,7 +346,9 @@ def fit_and_output(
             datasets, ks_guesses=k_guesses,
             conc0_guesses=conc_guesses, ks_const=fixed_ks,
             conc0_const=fixed_concs, monitor=monitor,
-            N_boot=bootstrap_iterations)
+            N_boot=bootstrap_iterations, boot_CI=bootstrap_CI,
+            boot_points=text_output_points,
+            boot_t_exp=text_time_extension_factor)
 
     for n in range(reg_info['num_datasets']):
         output_text = prepare_text(
@@ -357,3 +370,22 @@ def fit_and_output(
             generate_plot(model, reg_info, n, plot_output_points,
                           plot_time_extension_factor, plot_filename,
                           bootstrap_CI, common_y, units)
+
+    if (type(model) is IndirectKineticModel) and simulate:
+        for n in range(reg_info['num_datasets']):
+            sim_filename = (f"{data_filename}_{model.name}_sim_"
+                            f"{reg_info['dataset_names'][n]}")
+            simulate_and_output(
+                    model=model.parent_model,
+                    ks=reg_info['fit_ks'] + reg_info['fixed_ks'],
+                    concs=(reg_info['fit_concs'][n]
+                           + reg_info['fixed_concs'][n]),
+                    time=(max(reg_info['dataset_times'][n])
+                          * text_time_extension_factor),
+                    text_num_points=text_output_points,
+                    plot_num_points=plot_output_points,
+                    filename=sim_filename,
+                    text_full_output=True,
+                    units=units,
+                    plot_time=(max(reg_info['dataset_times'][n])
+                               * plot_time_extension_factor))

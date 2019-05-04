@@ -57,7 +57,7 @@ class Dataset:
                     # Line contains data
                     curr_ds_times.append(float(curline[0]))
                     line_concs = []
-                    for n in range(model.num_concs0):
+                    for n in range(model.num_data_concs):
                         if n+1 < len(curline):
                             if curline[n+1] != "":
                                 line_concs.append(float(curline[n+1]))
@@ -90,7 +90,7 @@ class Dataset:
                 datasets[s].times = np.array(all_times[s])
                 unsorted_data = np.array(all_concs[s])
                 sorted_data = np.empty_like(unsorted_data)
-                for n in range(model.num_concs0):
+                for n in range(model.num_data_concs):
                     sorted_data[:, n] = unsorted_data[:, model.sort_order[n]]
                 datasets[s].concs = sorted_data
 

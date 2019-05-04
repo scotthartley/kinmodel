@@ -77,3 +77,39 @@ model = KineticModel(
 ```
 
 Note that the concentrations (concs) with variable starting concentration (S1 in the example) passed first, followed by the others. That is, the total number of entries for starting_concs_guesses and starting_concs_constant should be equal to the number of species, with the variable ones always listed first.
+
+Models can also be defined with the IndirectKineticModel class. This allows normal KineticModel mechanisms to be used in cases where the experimental observables are a function of the underlying concentrations (e.g., oligomers where the total functional group concentration is known but individual concentrations are not). These are defined as in:
+
+```
+import textwrap
+import numpy as np
+from ..KineticModel import IndirectKineticModel
+
+
+model = IndirectKineticModel(
+    name="DA_explicit_DA2_ss_ind",
+    parent_model_name="DA_explicit_DA2_ss",
+    description=textwrap.dedent("""\
+        Indirect version of the DA_explicit_DA2_ss model, using total
+        diacid and total anhydride concentration.\
+        """),
+    conc_mapping=lambda c: np.array([c[:, 0]+c[:, 3],
+                                     c[:, 1],
+                                     c[:, 2],
+                                     c[:, 3],
+                                     c[:, 4]]).transpose(),
+    legend_names=["Diacid", "EDC", "Urea", "Linear", "Cyclic"],
+    top_plot=[1, 2],
+    bottom_plot=[0, 3, 4],
+    sort_order=[2, 3, 4, 0, 1],
+    int_eqn=[
+        ],
+    int_eqn_desc=[
+        ],
+    lifetime_conc=[],
+    rectime_conc=[],
+    )
+```
+
+Here the parent_model_name defines the underlying mechanism. The conc_mapping function converts the concentrations of the species into the experimentally observed quantities. In the example, the "Diacid" concentration is the sum of the concentrations of species 0 and 4 in the DA_explicit_DA2 KineticModel.
+

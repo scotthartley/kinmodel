@@ -14,7 +14,7 @@ def equations(concs, t, *ks):
 
 
 model = KineticModel(
-    name="shared_int",
+    name="MA_shared_int",
     description=textwrap.dedent("""\
         Simple model with shared acylpyridinium intermediate:
 

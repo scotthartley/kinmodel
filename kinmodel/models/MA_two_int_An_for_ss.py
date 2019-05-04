@@ -16,7 +16,7 @@ def equations(concs, t, *ks):
 
 
 model = KineticModel(
-    name="two_int_An_for_ss",
+    name="MA_two_int_An_for_ss",
     description=textwrap.dedent("""\
         Simple model with distinct intermediates and direct anhydride
         formation:

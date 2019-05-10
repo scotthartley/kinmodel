@@ -107,7 +107,8 @@ def prepare_text(
                      f"({param_CIs[0][n]:+5e}, {param_CIs[1][n]:+5e})\n")
         text += "\n"
         text += (f"Errors are {boot_CI}% confidence intervals from "
-                 f"bootstrapping ({reg_info['boot_num']} permutations).\n")
+                 f"bootstrapping using the {reg_info['boot_method']} method "
+                 f"({reg_info['boot_num']} permutations).\n")
     else:
         for n in range(model.num_params):
             text += (f"{model.parameter_names[n]:>{model.len_params}} "
@@ -335,7 +336,7 @@ def fit_and_output(
             text_time_extension_factor=3.0, text_output=True,
             plot_output_points=1000, plot_time_extension_factor=1.1,
             text_full_output=True, monitor=False,
-            bootstrap_iterations=100, bootstrap_CI=95,
+            bootstrap_iterations=100, bootstrap_CI=95, bootstrap_fixedX=False,
             more_stats=False, common_y=True, units=None, simulate=True):
     """Carry out the fit of the model and output the data.
 
@@ -348,7 +349,8 @@ def fit_and_output(
             conc0_const=fixed_concs, monitor=monitor,
             N_boot=bootstrap_iterations, boot_CI=bootstrap_CI,
             boot_points=text_output_points,
-            boot_t_exp=text_time_extension_factor)
+            boot_t_exp=text_time_extension_factor,
+            boot_fixX=bootstrap_fixedX)
 
     for n in range(reg_info['num_datasets']):
         output_text = prepare_text(

@@ -326,16 +326,18 @@ class KineticModel:
         if N_boot > 1:
             reg_info['boot_num'] = N_boot
             if boot_fixX:
-                reg_info['boot_fit_ks'], reg_info['boot_fit_concs'] = (
-                        self._bootstrap_fixedX(
-                                N_boot, reg_info['dataset_times'],
-                                reg_info['predicted_data'], pure_residuals,
-                                results['x'], parameter_constants, monitor))
+                reg_info['boot_method'] = "fixed-X"
+                all_boot_datasets = Dataset.boot_fixedX(
+                        N_boot, reg_info['dataset_times'],
+                        reg_info['predicted_data'], pure_residuals)
             else:
-                reg_info['boot_fit_ks'], reg_info['boot_fit_concs'] = (
-                        self._bootstrap_randomX(
-                                N_boot, datasets,
-                                results['x'], parameter_constants, monitor))
+                reg_info['boot_method'] = "random-X"
+                all_boot_datasets = Dataset.boot_randomX(N_boot, datasets)
+
+            reg_info['boot_fit_ks'], reg_info['boot_fit_concs'] = (
+                    self.bootstrap(
+                            all_boot_datasets, results['x'],
+                            parameter_constants, monitor))
             reg_info['boot_param_CIs'] = []
             reg_info['boot_plot_CIs'] = []
             reg_info['boot_plot_ts'] = []
@@ -374,6 +376,37 @@ class KineticModel:
                         residuals[d][m].append(np.nan)
 
         return np.array(residuals)
+
+    def bootstrap(self, all_datasets, fit_params, constants, monitor=False):
+        """Process a set of datasets obtained by a bootstrapping method,
+        returning the ks and concs.
+
+        """
+        total_datasets = len(all_datasets)
+        num_datasets = len(all_datasets[0])
+        boot_params = np.empty(
+                (0, self.num_var_ks+self.num_var_concs0*num_datasets))
+
+        n = 0
+        for datasets in all_datasets:
+            n += 1
+            if monitor:
+                print(f"Bootstrapping iteration {n} of {total_datasets}")
+            boot_results = scipy.optimize.least_squares(
+                    self._residual, fit_params, bounds=self.bounds,
+                    args=(datasets, constants, False))
+            boot_params = np.append(boot_params, [boot_results['x']], axis=0)
+
+        boot_fit_ks = []
+        boot_fit_concs = [[] for _ in range(num_datasets)]
+        for p in boot_params:
+            boot_fit_ks.append(list(p[:self.num_var_ks]))
+
+            for n in range(num_datasets):
+                boot_fit_concs[n].append(self._dataset_concs(
+                        n, list(p[self.num_var_ks:]), self.num_var_concs0))
+
+        return np.array(boot_fit_ks), np.array(boot_fit_concs)
 
     def bootstrap_param_CIs(self, reg_info, dataset_n, CI):
         """Returns upper and lower confidence intervals for bootstrapped
@@ -473,139 +506,6 @@ class KineticModel:
             print(f"Current ssr (weighted): {sum([n**2 for n in residuals])}")
 
         return np.array(residuals)
-
-    def _bootstrap_fixedX(self, N, times, model_ys, residuals, fit_params,
-                          constants, monitor):
-        """Calculates errors using a non-parametric fixed X bootstrap
-        method. A random residual is added to each predicted data point
-        and the resulting "boot_dataset" is refit. Errors are obtained
-        from taking confidence intervals from the resulting datasets.
-        Only executed if N_boot >= 2 (makes no sense otherwise), should
-        be much larger.
-
-        """
-        def rand_residual(residuals, d, c):
-            r = np.nan
-            while np.isnan(r):
-                r = np.random.choice(residuals[d][c])
-            return r
-
-        num_datasets = len(model_ys)
-        boot_params = np.empty(
-                (0, self.num_var_ks+self.num_var_concs0*num_datasets))
-        for i in range(N):
-            if monitor:
-                print(f"Bootstrapping iteration {i+1} of {N}")
-
-            # Perturbed datasets that can be fit.
-            boot_datasets = []
-            for d in range(num_datasets):
-                new_concs = np.empty((0, self.num_data_concs))
-                new_concs_t0 = []
-                # Leave starting conc 0's as 0's. These are not
-                # unknowns.
-                for c in range(self.num_concs0):
-                    conc = model_ys[d][0][c]
-                    if not np.isnan(conc) and conc != 0:
-                        new_concs_t0.append(
-                                conc + rand_residual(residuals, d, c))
-                    else:
-                        new_concs_t0.append(conc)
-                new_concs = np.append(new_concs, [new_concs_t0], axis=0)
-
-                for n in range(1, len(model_ys[d])):
-                    new_concs_t = []
-                    for c in range(len(model_ys[d][n])):
-                        conc = model_ys[d][n][c]
-                        if not np.isnan(conc):
-                            new_concs_t.append(
-                                    conc + rand_residual(residuals, d, c))
-                        else:
-                            new_concs_t.append(np.nan)
-                    new_concs = np.append(new_concs, [np.array(new_concs_t)],
-                                          axis=0)
-                boot_datasets.append(Dataset(times=times[d], concs=new_concs))
-
-            boot_results = scipy.optimize.least_squares(
-                    self._residual, fit_params, bounds=self.bounds,
-                    args=(boot_datasets, constants, False))
-            boot_params = np.append(boot_params, [boot_results['x']], axis=0)
-
-        boot_fit_ks = []
-        boot_fit_concs = [[] for _ in range(num_datasets)]
-        for p in boot_params:
-            boot_fit_ks.append(list(p[:self.num_var_ks]))
-
-            for n in range(num_datasets):
-                boot_fit_concs[n].append(self._dataset_concs(
-                        n, list(p[self.num_var_ks:]), self.num_var_concs0))
-
-        return np.array(boot_fit_ks), np.array(boot_fit_concs)
-
-    def _bootstrap_randomX(self, N, datasets, fit_params, constants,
-                           monitor=False, force1st=True):
-        """Calculates errors using a non-parametric random X bootstrap
-        method. Subsets of the data are generated by filling with
-        randomly chosen time points from the original data. The
-        resulting "boot_dataset" is refit. Errors are obtained from
-        taking confidence intervals from the resulting datasets. Only
-        executed if N_boot >= 2 (makes no sense otherwise), should be
-        much larger.
-
-        Parameter force1st toggles whether the first point is always
-        included in the subsets.
-
-        """
-        def sort_data(times, concs):
-            sorted_times = np.array(sorted(times))
-            sorted_concs = np.array([c for _, c in sorted(
-                    list(zip(times, concs)), key=lambda x: x[0])])
-            return sorted_times, sorted_concs
-
-        num_datasets = len(datasets)
-        boot_params = np.empty(
-                (0, self.num_var_ks+self.num_var_concs0*num_datasets))
-
-        for i in range(N):
-            if monitor:
-                print(f"Bootstrapping iteration {i+1} of {N}")
-
-            boot_datasets = []
-            for d in datasets:
-                if force1st:
-                    new_concs = np.array([d.concs[0]])
-                    new_times = np.array([d.times[0]])
-                    while len(new_times) < len(d.times):
-                        x = np.random.randint(1, d.num_times)
-                        new_concs = np.append(new_concs, [d.concs[x]], axis=0)
-                        new_times = np.append(new_times, [d.times[x]], axis=0)
-                else:
-                    new_concs = np.empty((0, self.num_data_concs))
-                    new_times = np.array([])
-                    for n in range(0, d.num_times):
-                        x = np.random.randint(0, d.num_times)
-                        new_concs = np.append(new_concs, [d.concs[x]], axis=0)
-                        new_times = np.append(new_times, [d.times[x]], axis=0)
-                sorted_times, sorted_concs = sort_data(new_times, new_concs)
-                boot_datasets.append(Dataset(
-                        times=sorted_times, concs=sorted_concs))
-
-
-            boot_results = scipy.optimize.least_squares(
-                    self._residual, fit_params, bounds=self.bounds,
-                    args=(boot_datasets, constants, False))
-            boot_params = np.append(boot_params, [boot_results['x']], axis=0)
-
-        boot_fit_ks = []
-        boot_fit_concs = [[] for _ in range(num_datasets)]
-        for p in boot_params:
-            boot_fit_ks.append(list(p[:self.num_var_ks]))
-
-            for n in range(num_datasets):
-                boot_fit_concs[n].append(self._dataset_concs(
-                        n, list(p[self.num_var_ks:]), self.num_var_concs0))
-
-        return np.array(boot_fit_ks), np.array(boot_fit_concs)
 
     @staticmethod
     def _dataset_concs(n, c_list, c_per_n):

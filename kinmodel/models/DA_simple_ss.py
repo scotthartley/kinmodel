@@ -68,7 +68,6 @@ model = KineticModel(
         "k1*p*EM*Ac*E/(K+Ac+p*EM)",
         "k2C*C",
         ],
-    weight_func=lambda exp: min(np.divide(1, 0.1*float(exp)), 2),
     lifetime_conc=[3, 4],
     rectime_conc=[0],
     )

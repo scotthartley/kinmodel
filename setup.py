@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 def readme():
-    with open("README.rst") as file:
+    with open("README.rst", encoding='utf8') as file:
         return file.read()
 
 exec(open('kinmodel/_version.py').read())

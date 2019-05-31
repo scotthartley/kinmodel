@@ -22,7 +22,8 @@ model = KineticModel(
                  I ---> Ac + U  (kiAc)
                 An ---> 2Ac     (k2)
 
-            Steady-state approximation with K = kiAc/kiAn"""),
+        Steady-state approximation with K = kiAc/kiAn.\
+        """),
     kin_sys=equations,
     ks_guesses=[0.02, 200, 0.5],
     ks_constant=[],

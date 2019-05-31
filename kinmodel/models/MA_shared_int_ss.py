@@ -22,7 +22,8 @@ model = KineticModel(
             I + Ac <==> An     (k2, k-2)
                  I ---> Ac     (k3)
 
-            Steady-state approximation with K=k3/k2"""),
+        Steady-state approximation with K=k3/k2.\
+        """),
     kin_sys=equations,
     ks_guesses=[0.02, 0.03, 10],
     ks_constant=[],

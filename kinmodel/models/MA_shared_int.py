@@ -22,7 +22,8 @@ model = KineticModel(
             I + Ac <==> An     (k2, k-2)
                  I ---> Ac     (k3)
 
-            No steady-state approximation"""),
+        No steady-state approximation.\
+        """),
     kin_sys=equations,
     ks_guesses=[0.02, 0.03, 0.1, 1],
     ks_constant=[],

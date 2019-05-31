@@ -1,5 +1,4 @@
 import textwrap
-import numpy as np
 from ..KineticModel import KineticModel
 
 

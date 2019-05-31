@@ -1,5 +1,4 @@
 import textwrap
-import numpy as np
 from ..KineticModel import KineticModel
 
 
@@ -42,9 +41,8 @@ model = KineticModel(
         observed concentrations: Ac (total diacid), L (total linear
         anhydride), C (total cyclic anhydride), E (EDCI), and U (urea).
 
-        Applying a steady-state approximation in I:
-        K = kiAc/kiL
-        EM - kiC/kiL"""),
+        Steady-state approximation in I: K = kiAc/kiL, EM - kiC/kiL.\
+        """),
     kin_sys=equations,
     ks_guesses=[0.02, 100, 10, 0.5, 1, 0.1, 0.1, 0.1],
     ks_constant=[],

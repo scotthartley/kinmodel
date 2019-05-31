@@ -15,7 +15,8 @@ model = KineticModel(
     description=textwrap.dedent("""\
         Simple first order decay
 
-            E ---> U       (k)"""),
+            E ---> U       (k)\
+        """),
     kin_sys=equations,
     ks_guesses=[1],
     ks_constant=[],

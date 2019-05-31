@@ -24,8 +24,8 @@ model = KineticModel(
                  I ---> Ac     (k3)
                  E ---> U      (k4 + k5[Ac])
 
-            Steady-state approximation with K=k3/k2
-            k4 is fixed"""),
+        Steady-state approximation with K=k3/k2. k4 is fixed.\
+        """),
     kin_sys=equations,
     ks_guesses=[0.02, 0.03, 0.1, 10],
     ks_constant=[0.01],

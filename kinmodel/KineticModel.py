@@ -309,7 +309,8 @@ class KineticModel:
         pure_residuals = self._pure_residuals(datasets, reg_info,
                                               parameter_constants)
 
-        reg_info['pure_ssr'] = np.nansum(np.square(pure_residuals))
+        # reg_info['pure_ssr'] = np.nansum(np.square(pure_residuals))
+        reg_info['pure_ssr'] = sum([np.nansum(np.square(r)) for r in pure_residuals])
         reg_info['pure_m_ssq'] = reg_info['pure_ssr']/reg_info['dof']
         reg_info['pure_rmsd'] = reg_info['pure_m_ssq']**0.5
 
@@ -356,7 +357,7 @@ class KineticModel:
         """
         residuals = []
         for d in range(len(datasets)):
-            residuals.append([])
+            dataset_residuals = []
             d_ks = np.append(
                     reg_info['fit_ks'],
                     parameter_constants[:self.num_const_ks])
@@ -367,15 +368,16 @@ class KineticModel:
                             self.num_const_concs0))
             solution = self._solved_kin_sys(d_concs, d_ks, datasets[d].times)
             for m in range(self.num_data_concs):
-                residuals[d].append([])
+                dataset_residuals.append([])
                 for n in range(datasets[d].num_times):
                     if not np.isnan(datasets[d].concs[n, m]):
-                        residuals[d][m].append(
+                        dataset_residuals[m].append(
                                 datasets[d].concs[n, m] - solution[n, m])
                     else:
-                        residuals[d][m].append(np.nan)
+                        dataset_residuals[m].append(np.nan)
+            residuals.append(np.array(dataset_residuals))
 
-        return np.array(residuals)
+        return residuals
 
     def bootstrap(self, all_datasets, fit_params, constants, monitor=False):
         """Process a set of datasets obtained by a bootstrapping method,

@@ -173,8 +173,6 @@ def prepare_text(
         text += "Results:\n"
         text += "\n"
         if 'boot_num' in reg_info and boot_CI:
-            # boot_CI_data = model.bootstrap_plot_CIs(
-            #         reg_info, ds_num, boot_CI, num_points, time_exp_factor)
             assert (list(reg_info['boot_plot_ts'][ds_num])
                     == list(smooth_ts_out)), ("Simulation and bootstrap"
                                               "points do not line up!")
@@ -220,8 +218,6 @@ def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
             num_points, max_time, integrate=False)
 
     if 'boot_num' in reg_info and boot_CI:
-        # boot_CI_plots = model.bootstrap_plot_CIs(
-        #         reg_info, ds_num, boot_CI, num_points, time_exp_factor)
         boot_CI_plots = reg_info['boot_plot_CIs'][ds_num]
         boot_ts = reg_info['boot_plot_ts'][ds_num]
 

@@ -289,7 +289,7 @@ class KineticModel:
                     self._dataset_concs(n, fixed_concs, self.num_const_concs0))
 
         reg_info['predicted_data'] = []
-        for d in range(len(datasets)):
+        for d in range(num_datasets):
             reg_info['predicted_data'].append(self._solved_kin_sys(
                     reg_info['fit_concs'][d] + reg_info['fixed_concs'][d],
                     reg_info['fit_ks'] + reg_info['fixed_ks'],
@@ -342,7 +342,10 @@ class KineticModel:
             reg_info['boot_param_CIs'] = []
             reg_info['boot_plot_CIs'] = []
             reg_info['boot_plot_ts'] = []
-            for d in range(len(datasets)):
+            for d in range(num_datasets):
+                if monitor:
+                    print(f"Simulating bootstrap dataset {d+1} of "
+                          f"{num_datasets}")
                 reg_info['boot_param_CIs'].append(self.bootstrap_param_CIs(
                         reg_info, d, boot_CI))
                 boot_CIs, boot_ts = self.bootstrap_plot_CIs(

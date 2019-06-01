@@ -11,6 +11,7 @@ import numpy as np
 import scipy.integrate
 import scipy.optimize
 import scipy.linalg
+import math
 from .Dataset import Dataset
 from .default_models import default_models
 
@@ -433,19 +434,42 @@ class KineticModel:
         max_time = max(reg_info['dataset_times'][dataset_n])*time_exp_factor
         smooth_ts_out, _ = np.linspace(0, max_time, num_points, retstep=True)
 
-        boot_results = np.empty((0, num_points, self.num_data_concs))
-        for n in range(reg_info['boot_num']):
+        boot_iterations = reg_info['boot_num']
+        CI_num = math.ceil(boot_iterations*(100-CI)/200)
+        assert CI_num > 0
+
+        CI_top = np.empty((0, num_points, self.num_data_concs))
+        CI_bot = np.empty((0, num_points, self.num_data_concs))
+        for n in range(boot_iterations):
             if monitor:
                 print(f"Simulating bootstrap iteration {n+1} "
-                      f"of {reg_info['boot_num']}")
+                      f"of {reg_info['boot_num']}", end="")
             _, boot_plot, _ = self.simulate(
                     reg_info['boot_fit_ks'][n],
                     reg_info['boot_fit_concs'][dataset_n][n], num_points,
                     max_time, integrate=False)
-            boot_results = np.append(boot_results, [boot_plot], axis=0)
+            if (n+1) <= CI_num:
+                CI_top = np.append(CI_top, [boot_plot], axis=0)
+                CI_top = np.sort(CI_top, axis=0)
+                CI_bot = np.append(CI_bot, [boot_plot], axis=0)
+                CI_bot = np.sort(CI_bot, axis=0)
+            else:
+                if not np.all(np.maximum(CI_top[0], boot_plot) == CI_top[0]):
+                    if monitor:
+                        print(', top CI increased', end="")
+                    CI_top = np.append(CI_top, [boot_plot], axis=0)
+                    CI_top = np.sort(CI_top, axis=0)
+                    CI_top = CI_top[1:]
+                if not np.all(np.minimum(CI_bot[-1], boot_plot) == CI_bot[-1]):
+                    if monitor:
+                        print(', bottom CI decreased', end="")
+                    CI_bot = np.append(CI_bot, [boot_plot], axis=0)
+                    CI_bot = np.sort(CI_bot, axis=0)
+                    CI_bot = CI_bot[:-1]
+            if monitor:
+                print()
 
-        return (np.percentile(boot_results, [(100-CI)/2, (100+CI)/2], axis=0),
-                smooth_ts_out)
+        return (CI_top[0], CI_bot[-1]), smooth_ts_out
 
     def _solved_kin_sys(self, conc0, ks, times):
         """Solves the system of differential equations for given values

@@ -269,12 +269,12 @@ class KineticModel:
         reg_info['dataset_concs'] = [d.concs.tolist() for d in datasets]
         reg_info['num_datasets'] = num_datasets
 
-        max_concs = [0]*self.num_data_concs
+        max_exp_concs = [0]*self.num_data_concs
         for d in datasets:
             for n in range(self.num_data_concs):
-                if np.nanmax(d.concs[:, n]) > max_concs[n]:
-                    max_concs[n] = np.nanmax(d.concs[:, n])
-        reg_info['max_concs'] = max_concs
+                if np.nanmax(d.concs[:, n]) > max_exp_concs[n]:
+                    max_exp_concs[n] = np.nanmax(d.concs[:, n])
+        reg_info['max_exp_concs'] = max_exp_concs
 
         reg_info['fit_ks'] = list(results['x'][:self.num_var_ks])
         fit_concs = list(results['x'][self.num_var_ks:])
@@ -295,6 +295,13 @@ class KineticModel:
                     reg_info['fit_concs'][d] + reg_info['fixed_concs'][d],
                     reg_info['fit_ks'] + reg_info['fixed_ks'],
                     reg_info['dataset_times'][d]))
+
+        max_pred_concs = [0]*self.num_data_concs
+        for d in reg_info['predicted_data']:
+            for n in range(self.num_data_concs):
+                if np.nanmax(d[:, n]) > max_pred_concs[n]:
+                    max_pred_concs[n] = np.nanmax(d[:, n])
+        reg_info['max_pred_concs'] = max_pred_concs
 
         reg_info['success'] = results['success']
         reg_info['message'] = results['message']

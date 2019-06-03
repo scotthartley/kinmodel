@@ -341,7 +341,8 @@ def fit_and_output(
             plot_output_points=1000, plot_time_extension_factor=1.1,
             text_full_output=True, monitor=False,
             bootstrap_iterations=100, bootstrap_CI=95, bootstrap_fixedX=False,
-            more_stats=False, common_y=True, units=None, simulate=True):
+            bootstrap_nodes=None, more_stats=False, common_y=True, units=None,
+            simulate=True):
     """Carry out the fit of the model and output the data.
 
     """
@@ -354,7 +355,8 @@ def fit_and_output(
             N_boot=bootstrap_iterations, boot_CI=bootstrap_CI,
             boot_points=text_output_points,
             boot_t_exp=text_time_extension_factor,
-            boot_fixX=bootstrap_fixedX)
+            boot_fixX=bootstrap_fixedX,
+            boot_nodes=bootstrap_nodes)
 
     for n in range(reg_info['num_datasets']):
         output_text = prepare_text(

@@ -68,6 +68,10 @@ def fit_kinetics():
         help=("Use the fixed-X bootstrapping method"),
         action='store_true')
     parser.add_argument(
+        "-bn", "--bootstrap_nodes",
+        help=(""),
+        type=int, default=None)
+    parser.add_argument(
         "-so", "--summary_output",
         help="Excludes conc vs time data from text output",
         action='store_true')
@@ -147,6 +151,7 @@ def fit_kinetics():
             text_full_output=not args.summary_output,
             monitor=not args.no_verbose,
             bootstrap_iterations=args.bootstrap_iterations,
+            bootstrap_nodes=args.bootstrap_nodes,
             bootstrap_CI=args.confidence_interval,
             bootstrap_fixedX=args.bootstrap_fixedX,
             more_stats=args.more_stats,

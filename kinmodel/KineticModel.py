@@ -12,6 +12,8 @@ import scipy.integrate
 import scipy.optimize
 import scipy.linalg
 import math
+import time
+from pathos.pools import ProcessPool
 from .Dataset import Dataset
 from .default_models import default_models
 
@@ -213,7 +215,7 @@ class KineticModel:
                      conc0_guesses=None, ks_const=None,
                      conc0_const=None, N_boot=0, monitor=False,
                      boot_CI=95, boot_points=1000, boot_t_exp=1.1,
-                     boot_fixX=False):
+                     boot_fixX=False, boot_nodes=None):
         """Performs a fit to a set of datasets containing time and
         concentration data.
 
@@ -346,7 +348,7 @@ class KineticModel:
             reg_info['boot_fit_ks'], reg_info['boot_fit_concs'] = (
                     self.bootstrap(
                             all_boot_datasets, results['x'],
-                            parameter_constants, monitor))
+                            parameter_constants, monitor, nodes=boot_nodes))
             reg_info['boot_param_CIs'] = []
             reg_info['boot_plot_CIs'] = []
             reg_info['boot_plot_ts'] = []
@@ -390,25 +392,57 @@ class KineticModel:
 
         return residuals
 
-    def bootstrap(self, all_datasets, fit_params, constants, monitor=False):
+    def bootstrap(self, all_datasets, fit_params, constants,
+                  monitor=False, nodes=None):
         """Process a set of datasets obtained by a bootstrapping method,
         returning the ks and concs.
 
         """
+
+
         total_datasets = len(all_datasets)
         num_datasets = len(all_datasets[0])
         boot_params = np.empty(
                 (0, self.num_var_ks+self.num_var_concs0*num_datasets))
 
-        n = 0
-        for datasets in all_datasets:
-            n += 1
-            if monitor:
-                print(f"Bootstrapping iteration {n} of {total_datasets}")
-            boot_results = scipy.optimize.least_squares(
+        # Old code that runs bootstrap fits in serial.
+        # n = 0
+        # for datasets in all_datasets:
+        #     n += 1
+        #     if monitor:
+        #         print(f"Bootstrapping iteration {n} of {total_datasets}")
+        #     boot_params = np.append(boot_params, [results(datasets, fit_params, constants)], axis=0)
+
+        # New code that runs bootstrap fits in parallel.
+        def results(datasets):
+            fit = scipy.optimize.least_squares(
                     self._residual, fit_params, bounds=self.bounds,
-                    args=(datasets, constants, False))
-            boot_params = np.append(boot_params, [boot_results['x']], axis=0)
+                    args=(datasets, constants, False))['x']
+            return fit
+
+        if monitor:
+            print("Fitting bootstrap iterations")
+
+        with ProcessPool(nodes=nodes) as p:
+            boot_params = p.map(results, all_datasets)
+
+        # Alternate code for pathos using asynchronous worker pool.
+        # pool = ProcessPool(nodes=nodes)
+        # fits = pool.amap(results, all_datasets)
+        # while not fits.ready():
+        #     pass
+        # boot_params = fits.get()
+
+        # Alternate code for pathos using iterating map.
+        # pool = ProcessPool(nodes=nodes)
+        # fits = pool.imap(results, all_datasets)
+        # boot_params = []
+        # n = 0
+        # for i in fits:
+        #     n += 1
+        #     if monitor:
+        #         print(f"Bootstrapping iteration {n} of {total_datasets}")
+        #     boot_params.append(i)
 
         boot_fit_ks = []
         boot_fit_concs = [[] for _ in range(num_datasets)]

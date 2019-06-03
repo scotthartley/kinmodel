@@ -21,6 +21,6 @@ setup(name='kinmodel',
               'model_kinetics = kinmodel:model_kinetics',
           ]
       },
-      install_requires=['numpy', 'scipy', 'matplotlib'],
+      install_requires=['numpy', 'scipy', 'matplotlib', 'pathos'],
       python_requires=">=3.6",
       )

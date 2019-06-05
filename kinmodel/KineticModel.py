@@ -396,36 +396,40 @@ class KineticModel:
         returning the ks and concs.
 
         """
+        def _results(inp):
+            """Used to parallelize fitting of datasets.
+
+            """
+            datasets, cnt, lock = inp
+            if monitor:
+                with lock:
+                    cnt.value += 1
+                    print(f"Bootstrapping fit {cnt.value} of {total_datasets}")
+            fit = scipy.optimize.least_squares(
+                    self._residual, fit_params, bounds=self.bounds,
+                    args=(datasets, constants, False))['x']
+            return fit
+
         total_datasets = len(all_datasets)
         num_datasets = len(all_datasets[0])
         boot_params = np.empty(
                 (0, self.num_var_ks+self.num_var_concs0*num_datasets))
 
-        # Old code that runs bootstrap fits in serial.
+        # # Old code that runs bootstrap fits in serial.
         # n = 0
         # for datasets in all_datasets:
         #     n += 1
         #     if monitor:
-        #         print(f"Bootstrapping iteration {n} of {total_datasets}")
+        #         print(f"Bootstrapping fit {n} of {total_datasets}")
         #     boot_params = np.append(boot_params, [results(datasets, fit_params, constants)], axis=0)
 
         # New code that runs bootstrap fits in parallel.
-        def results(inp):
-            datasets, cnt, lock = inp
-            # print(f"Iteration {indexed_datasets[0]}")
-            fit = scipy.optimize.least_squares(
-                    self._residual, fit_params, bounds=self.bounds,
-                    args=(datasets, constants, False))['x']
-            if monitor:
-                with lock:
-                    cnt.value += 1
-                    print(f"Bootstrapping fit {cnt.value} of {total_datasets}")
-            return fit
 
         with ProcessPool(nodes=nodes) as p:
             lock = multiprocess.Manager().Lock()
             counter = multiprocess.Manager().Value('i', 0)
-            boot_params = p.map(results, [(d, counter, lock) for d in all_datasets])
+            boot_params = p.map(
+                _results, [(d, counter, lock) for d in all_datasets])
 
         boot_fit_ks = []
         boot_fit_concs = [[] for _ in range(num_datasets)]
@@ -466,7 +470,7 @@ class KineticModel:
         CI_bot = np.empty((0, num_points, self.num_data_concs))
         for n in range(boot_iterations):
             if monitor:
-                print(f"Simulating bootstrap iteration {n+1} "
+                print(f"Bootstrapping simulation {n+1} "
                       f"of {reg_info['boot_num']}", end="")
             _, boot_plot, _ = self.simulate(
                     reg_info['boot_fit_ks'][n],

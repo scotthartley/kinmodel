@@ -13,6 +13,7 @@ import scipy.optimize
 import scipy.linalg
 import math
 from pathos.pools import ProcessPool
+from pathos.helpers import mp as multiprocess
 from .Dataset import Dataset
 from .default_models import default_models
 
@@ -395,7 +396,7 @@ class KineticModel:
         returning the ks and concs.
 
         """
-        # total_datasets = len(all_datasets)
+        total_datasets = len(all_datasets)
         num_datasets = len(all_datasets[0])
         boot_params = np.empty(
                 (0, self.num_var_ks+self.num_var_concs0*num_datasets))
@@ -409,35 +410,22 @@ class KineticModel:
         #     boot_params = np.append(boot_params, [results(datasets, fit_params, constants)], axis=0)
 
         # New code that runs bootstrap fits in parallel.
-        def results(datasets):
+        def results(inp):
+            datasets, cnt, lock = inp
+            # print(f"Iteration {indexed_datasets[0]}")
             fit = scipy.optimize.least_squares(
                     self._residual, fit_params, bounds=self.bounds,
                     args=(datasets, constants, False))['x']
+            if monitor:
+                with lock:
+                    cnt.value += 1
+                    print(f"Bootstrapping fit {cnt.value} of {total_datasets}")
             return fit
 
-        if monitor:
-            print("Fitting bootstrap iterations")
-
         with ProcessPool(nodes=nodes) as p:
-            boot_params = p.map(results, all_datasets)
-
-        # Alternate code for pathos using asynchronous worker pool.
-        # pool = ProcessPool(nodes=nodes)
-        # fits = pool.amap(results, all_datasets)
-        # while not fits.ready():
-        #     pass
-        # boot_params = fits.get()
-
-        # Alternate code for pathos using iterating map.
-        # pool = ProcessPool(nodes=nodes)
-        # fits = pool.imap(results, all_datasets)
-        # boot_params = []
-        # n = 0
-        # for i in fits:
-        #     n += 1
-        #     if monitor:
-        #         print(f"Bootstrapping iteration {n} of {total_datasets}")
-        #     boot_params.append(i)
+            lock = multiprocess.Manager().Lock()
+            counter = multiprocess.Manager().Value('i', 0)
+            boot_params = p.map(results, [(d, counter, lock) for d in all_datasets])
 
         boot_fit_ks = []
         boot_fit_concs = [[] for _ in range(num_datasets)]

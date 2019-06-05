@@ -64,8 +64,8 @@ def fit_kinetics():
               "(default=99)"),
         type=float, default=99)
     parser.add_argument(
-        "-bfx", "--bootstrap_fixedX",
-        help=("Use the fixed-X bootstrapping method"),
+        "-bff", "--bootstrap_force1st",
+        help=("Force bootstrapping to always use first data points"),
         action='store_true')
     parser.add_argument(
         "-bn", "--bootstrap_nodes",
@@ -153,7 +153,7 @@ def fit_kinetics():
             bootstrap_iterations=args.bootstrap_iterations,
             bootstrap_nodes=args.bootstrap_nodes,
             bootstrap_CI=args.confidence_interval,
-            bootstrap_fixedX=args.bootstrap_fixedX,
+            bootstrap_force1st=args.bootstrap_force1st,
             more_stats=args.more_stats,
             common_y=args.common_y,
             units=args.units,

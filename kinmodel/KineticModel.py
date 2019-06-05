@@ -12,7 +12,6 @@ import scipy.integrate
 import scipy.optimize
 import scipy.linalg
 import math
-import time
 from pathos.pools import ProcessPool
 from .Dataset import Dataset
 from .default_models import default_models
@@ -215,7 +214,7 @@ class KineticModel:
                      conc0_guesses=None, ks_const=None,
                      conc0_const=None, N_boot=0, monitor=False,
                      boot_CI=95, boot_points=1000, boot_t_exp=1.1,
-                     boot_fixX=False, boot_nodes=None):
+                     boot_force1st=False, boot_nodes=None):
         """Performs a fit to a set of datasets containing time and
         concentration data.
 
@@ -336,14 +335,12 @@ class KineticModel:
 
         if N_boot > 1:
             reg_info['boot_num'] = N_boot
-            if boot_fixX:
-                reg_info['boot_method'] = "fixed-X"
-                all_boot_datasets = Dataset.boot_fixedX(
-                        N_boot, reg_info['dataset_times'],
-                        reg_info['predicted_data'], pure_residuals)
-            else:
-                reg_info['boot_method'] = "random-X"
-                all_boot_datasets = Dataset.boot_randomX(N_boot, datasets)
+
+            reg_info['boot_method'] = "random-X"
+            reg_info['boot_force1st'] = True if boot_force1st else False
+            all_boot_datasets = Dataset.boot_randomX(
+                                        N_boot, datasets,
+                                        force1st=boot_force1st)
 
             reg_info['boot_fit_ks'], reg_info['boot_fit_concs'] = (
                     self.bootstrap(
@@ -398,9 +395,7 @@ class KineticModel:
         returning the ks and concs.
 
         """
-
-
-        total_datasets = len(all_datasets)
+        # total_datasets = len(all_datasets)
         num_datasets = len(all_datasets[0])
         boot_params = np.empty(
                 (0, self.num_var_ks+self.num_var_concs0*num_datasets))

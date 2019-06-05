@@ -22,7 +22,7 @@ model = KineticModel(
 
              Ac + E ---> I + U  (k1)
              I + Ac <==> An     (k2, k-2)
-                  I ---> Ac     (k3)
+                  I ---> Ac     (kw)
             An + Ac ---> 3Ac    (k4)
 
         Steady-state approximation with K=k3/k2.\

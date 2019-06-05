@@ -274,8 +274,9 @@ class KineticModel:
         max_exp_concs = [0]*self.num_data_concs
         for d in datasets:
             for n in range(self.num_data_concs):
-                if np.nanmax(d.concs[:, n]) > max_exp_concs[n]:
-                    max_exp_concs[n] = np.nanmax(d.concs[:, n])
+                if not np.all(np.isnan(d.concs[:, n])):
+                    if np.nanmax(d.concs[:, n]) > max_exp_concs[n]:
+                        max_exp_concs[n] = np.nanmax(d.concs[:, n])
         reg_info['max_exp_concs'] = max_exp_concs
 
         reg_info['fit_ks'] = list(results['x'][:self.num_var_ks])

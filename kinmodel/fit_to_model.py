@@ -361,6 +361,10 @@ def fit_and_output(
             boot_force1st=bootstrap_force1st,
             boot_nodes=bootstrap_nodes)
 
+    file_suffix = ""
+    if bootstrap_force1st:
+        file_suffix += "_ff"
+
     for n in range(reg_info['num_datasets']):
         output_text = prepare_text(
                 model, reg_info, n, text_output_points,
@@ -368,6 +372,7 @@ def fit_and_output(
                 text_full_output, more_stats)
         if text_output:
             text_filename = (f"{data_filename}_{model.name}"
+                             f"{file_suffix}"
                              f"_{reg_info['dataset_names'][n]}.txt")
             with open(text_filename, 'w', encoding='utf-8') as write_file:
                 print(output_text, file=write_file)
@@ -376,8 +381,9 @@ def fit_and_output(
 
     if plot_output_points:
         for n in range(reg_info['num_datasets']):
-            plot_filename = (f"{data_filename}_{model.name}_"
-                             f"{reg_info['dataset_names'][n]}.pdf")
+            plot_filename = (f"{data_filename}_{model.name}"
+                             f"{file_suffix}"
+                             f"_{reg_info['dataset_names'][n]}.pdf")
             generate_plot(model, reg_info, n, plot_output_points,
                           plot_time_extension_factor, plot_filename,
                           bootstrap_CI, common_y, units)

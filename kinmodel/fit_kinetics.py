@@ -56,7 +56,7 @@ def fit_kinetics():
     parser.add_argument(
         "-b", "--bootstrap_iterations",
         help=("Number of bootstrapping iterations to perform for parameter "
-              "errors (default=100, set to 0 to disable)"),
+              "errors (default=0)"),
         type=int, default=0)
     parser.add_argument(
         "-ci", "--confidence_interval",

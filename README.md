@@ -6,8 +6,9 @@ kinmodel is a python package for modeling chemical kinetics, and in particular f
 
 - Python 3.6
 - Numpy
-- Scipy
+- Scipy 1.2.1
 - Matplotlib
+- Pathos
 
 ## Installation
 

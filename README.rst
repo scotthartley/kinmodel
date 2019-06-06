@@ -14,8 +14,9 @@ Requirements
 
 -  Python 3.6
 -  Numpy
--  Scipy
+-  Scipy 1.2.1
 -  Matplotlib
+-  Pathos
 
 Installation
 ------------

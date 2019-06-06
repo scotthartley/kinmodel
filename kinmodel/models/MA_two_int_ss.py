@@ -9,7 +9,7 @@ def equations(concs, t, *ks):
     return [(- k1*Ac*E - (k1*Ac**2*E)/(Ac+K1) + (k1*K1*Ac*E)/(Ac+K1)
              + k4*An - (k4*Ac*An)/(Ac+K2) + (k4*K2*An)/(Ac+K2)),
             - k1*Ac*E,
-            + (k1*Ac**2*E)/(Ac+K1) + (k1*K1*Ac*E)/(Ac+K1),
+            + k1*Ac*E,
             + (k1*Ac**2*E)/(Ac+K1) - k4*An + (k4*Ac*An)/(Ac+K2)]
 
 

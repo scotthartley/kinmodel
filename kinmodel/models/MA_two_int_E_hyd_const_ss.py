@@ -28,7 +28,7 @@ model = KineticModel(
         Steady-state approximation with K1=k3/k2, K2=k5/k_4. kh is fixed.\
         """),
     kin_sys=equations,
-    ks_guesses=[0.02, 0.03, 10, 10],
+    ks_guesses=[0.02, 200, 10, 0.001],
     ks_constant=[1e-3],
     conc0_guesses=[50, 50],
     conc0_constant=[0, 0],

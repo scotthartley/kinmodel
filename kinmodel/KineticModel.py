@@ -311,7 +311,7 @@ class KineticModel:
         reg_info['ssr'] = results.cost * 2
 
         reg_info['total_points'] = total_points
-        reg_info['total_params'] = (self.num_ks
+        reg_info['total_params'] = (self.num_var_ks
                                     + self.num_var_concs0*num_datasets)
         reg_info['dof'] = total_points - reg_info['total_params']
         reg_info['m_ssq'] = reg_info['ssr']/reg_info['dof']

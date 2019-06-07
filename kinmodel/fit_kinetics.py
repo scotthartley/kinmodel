@@ -61,8 +61,8 @@ def fit_kinetics():
     parser.add_argument(
         "-ci", "--confidence_interval",
         help=("%% confidence interval to use for bootstrap statistics "
-              "(default=99)"),
-        type=float, default=99)
+              "(default=95)"),
+        type=float, default=95)
     parser.add_argument(
         "-bff", "--bootstrap_force1st",
         help=("Force bootstrapping to always use first data points"),

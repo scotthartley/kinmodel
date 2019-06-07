@@ -35,14 +35,14 @@ np.set_printoptions(precision=2, suppress=True)
 
 def prepare_text(
         model, reg_info, ds_num, num_points, time_exp_factor, filename="",
-        boot_CI=95, full_simulation=True, more_stats=False):
+        full_simulation=True, more_stats=False):
     """Generates the output text.
 
     The number of points (num_points) for the output simulation and
     integrals must be specified.
 
     """
-    smooth_ts_out, smooth_curves_out, integrals = model.simulate(
+    smooth_ts_out, smooth_curves_out, integrals, calculations = model.simulate(
             reg_info['fit_ks'] + reg_info['fixed_ks'],
             reg_info['fit_concs'][ds_num] + reg_info['fixed_concs'][ds_num],
             num_points,
@@ -59,7 +59,7 @@ def prepare_text(
     cov_stddevs = (
             reg_info['cov_errors'][:num_ks].tolist()
             + reg_info['cov_errors'][conc0_i:conc0_i+num_concs].tolist())
-    if 'boot_num' in reg_info and boot_CI:
+    if 'boot_num' in reg_info:
         boot_k_CIs, boot_conc_CIs = reg_info['boot_param_CIs'][ds_num]
         param_CIs = np.append(boot_k_CIs, boot_conc_CIs, axis=1)
 
@@ -99,14 +99,14 @@ def prepare_text(
 
     text += "Optimized parameters:\n"
     text += "\n"
-    if 'boot_num' in reg_info and boot_CI:
+    if 'boot_num' in reg_info:
         for n in range(len(dataset_params)):
             text += (f"{model.parameter_names[n]:>{model.len_params}} "
                      f"= {dataset_params[n]:+5e} "
                      f"± {(param_CIs[1][n]-param_CIs[0][n])/2:.1e} "
                      f"({param_CIs[0][n]:+5e}, {param_CIs[1][n]:+5e})\n")
         text += "\n"
-        text += (f"Errors are {boot_CI}% confidence intervals from "
+        text += (f"Errors are {reg_info['boot_CI']}% confidence intervals from "
                  f"bootstrapping using the {reg_info['boot_method']} method "
                  f"({reg_info['boot_num']} permutations).\n")
         if reg_info['boot_force1st']:
@@ -166,16 +166,33 @@ def prepare_text(
     if integrals:
         text += "Integrals:\n"
         text += "\n"
-        for n in integrals:
-            integral_label = "∫ " + n + " dt"
+        for integral in integrals:
+            integral_label = "∫ " + integral[0] + " dt"
             text += (f"{integral_label:>{model.len_int_eqn_desc+5}} "
-                     f"= {integrals[n]:+5e}\n")
+                     f"= {integral[1]:+5e}\n")
+        text += "\n"
+
+    if calculations:
+        text += "Calculations:\n"
+        text += "\n"
+        if 'boot_num' in reg_info:
+            for n in range(len(calculations)):
+                calc_label = calculations[n][0]
+                text += (f"{calc_label:>{model.len_calcs_desc}} "
+                         f"= {calculations[n][1]:+5e} "
+                         f"({reg_info['boot_calc_CIs'][1][n]:+5e}, "
+                         f"{reg_info['boot_calc_CIs'][0][n]:+5e})\n")
+        else:
+            for calc in calculations:
+                calc_label = calc[0]
+                text += (f"{calc_label:>{model.len_calcs_desc+5}} "
+                         f"= {calc[1]:+5e}\n")
         text += "\n"
 
     if full_simulation:
         text += "Results:\n"
         text += "\n"
-        if 'boot_num' in reg_info and boot_CI:
+        if 'boot_num' in reg_info:
             assert (list(reg_info['boot_plot_ts'][ds_num])
                     == list(smooth_ts_out)), ("Simulation and bootstrap"
                                               "points do not line up!")
@@ -215,10 +232,10 @@ def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
 
     max_time = max(reg_info['dataset_times'][ds_num])*time_exp_factor
 
-    smooth_ts_plot, smooth_curves_plot, _ = model.simulate(
+    smooth_ts_plot, smooth_curves_plot, _, _ = model.simulate(
             reg_info['fit_ks'] + reg_info['fixed_ks'],
             reg_info['fit_concs'][ds_num] + reg_info['fixed_concs'][ds_num],
-            num_points, max_time, integrate=False)
+            num_points, max_time, integrate=False, calcs=False)
 
     if 'boot_num' in reg_info and boot_CI:
         boot_CI_plots = reg_info['boot_plot_CIs'][ds_num]
@@ -345,7 +362,7 @@ def fit_and_output(
             text_full_output=True, monitor=False,
             bootstrap_iterations=100, bootstrap_CI=95,
             bootstrap_force1st=False, bootstrap_nodes=None, more_stats=False,
-            common_y=True, units=None, simulate=True):
+            common_y=True, units=None, simulate=True, calcs=True):
     """Carry out the fit of the model and output the data.
 
     """
@@ -368,7 +385,7 @@ def fit_and_output(
     for n in range(reg_info['num_datasets']):
         output_text = prepare_text(
                 model, reg_info, n, text_output_points,
-                text_time_extension_factor, data_filename, bootstrap_CI,
+                text_time_extension_factor, data_filename,
                 text_full_output, more_stats)
         if text_output:
             text_filename = (f"{data_filename}_{model.name}"

@@ -77,6 +77,8 @@ class KineticModel:
                  sort_order,
                  int_eqn=[],
                  int_eqn_desc=[],
+                 calcs=[],
+                 calcs_desc=[],
                  weight_func=lambda exp: 1,
                  bounds=(0, np.inf),
                  lifetime_conc=[],
@@ -102,6 +104,8 @@ class KineticModel:
         self.sort_order = sort_order
         self.int_eqn = int_eqn
         self.int_eqn_desc = int_eqn_desc
+        self.calcs = calcs
+        self.calcs_desc = calcs_desc
         self.weight_func = weight_func
         self.bounds = bounds
         self.lifetime_conc = lifetime_conc
@@ -169,7 +173,16 @@ class KineticModel:
     def len_int_eqn_desc(self):
         return max(len(n) for n in self.int_eqn_desc)
 
-    def simulate(self, ks, concs, num_points, max_time, integrate=True):
+    @property
+    def len_calcs_desc(self):
+        return max(len(n) for n in self.calcs_desc)
+
+    @property
+    def num_calcs(self):
+        return len(self.calcs)
+
+    def simulate(self, ks, concs, num_points, max_time, integrate=True,
+                 calcs=True):
         """Using _solved_kin_sys, solves the system of diff. equations
         for a given number of points, maximum time, and with optional
         integration.
@@ -199,17 +212,28 @@ class KineticModel:
                                                  smooth_ts_out)
 
         if integrate:
-            integrals = {}
+            integrals = []
             for i in range(len(self.int_eqn)):
                 integral_func = []
-                for t in smooth_curves_out:
-                    integral_func.append(self.int_eqn[i](t, ks))
-                integrals[self.int_eqn_desc[i]] = scipy.integrate.simps(
-                        integral_func, dx=deltaT)
+                for cs in smooth_curves_out:
+                    integral_func.append(self.int_eqn[i](cs, ks))
+                integrals.append(
+                        (self.int_eqn_desc[i],
+                         scipy.integrate.simps(integral_func, dx=deltaT)))
         else:
             integrals = None
 
-        return smooth_ts_out, smooth_curves_out, integrals
+        if calcs:
+            calc_results = []
+            for i in range(self.num_calcs):
+                calc_results.append(
+                        (self.calcs_desc[i],
+                         self.calcs[i](smooth_curves_out, np.append(ks, concs),
+                                       integrals)))
+        else:
+            calc_results = None
+
+        return smooth_ts_out, smooth_curves_out, integrals, calc_results
 
     def fit_to_model(self, datasets, ks_guesses=None,
                      conc0_guesses=None, ks_const=None,
@@ -348,6 +372,7 @@ class KineticModel:
                     self.bootstrap(
                             all_boot_datasets, results['x'],
                             parameter_constants, monitor, nodes=boot_nodes))
+            reg_info['boot_CI'] = boot_CI
             reg_info['boot_param_CIs'] = []
             reg_info['boot_plot_CIs'] = []
             reg_info['boot_plot_ts'] = []
@@ -357,9 +382,10 @@ class KineticModel:
                           f"{num_datasets}")
                 reg_info['boot_param_CIs'].append(self.bootstrap_param_CIs(
                         reg_info, d, boot_CI))
-                boot_CIs, boot_ts = self.bootstrap_plot_CIs(
+                boot_CIs, boot_calc_CIs, boot_ts = self.bootstrap_plot_CIs(
                         reg_info, d, boot_CI, boot_points, boot_t_exp, monitor)
                 reg_info['boot_plot_CIs'].append(boot_CIs)
+                reg_info['boot_calc_CIs'] = boot_calc_CIs
                 reg_info['boot_plot_ts'].append(boot_ts)
 
         return reg_info
@@ -467,38 +493,60 @@ class KineticModel:
         CI_num = math.ceil(boot_iterations*(100-CI)/200)
         assert CI_num > 0
 
-        CI_top = np.empty((0, num_points, self.num_data_concs))
-        CI_bot = np.empty((0, num_points, self.num_data_concs))
+        plot_topCI = np.empty((0, num_points, self.num_data_concs))
+        plot_botCI = np.empty((0, num_points, self.num_data_concs))
+        calc_topCI = [np.empty(0) for _ in range(self.num_calcs)]
+        calc_botCI = [np.empty(0) for _ in range(self.num_calcs)]
         for n in range(boot_iterations):
             if monitor:
                 print(f"Bootstrapping simulation {n+1} "
                       f"of {reg_info['boot_num']}", end="")
-            _, boot_plot, _ = self.simulate(
+            _, boot_plot, _, boot_calcs = self.simulate(
                     reg_info['boot_fit_ks'][n],
                     reg_info['boot_fit_concs'][dataset_n][n], num_points,
-                    max_time, integrate=False)
+                    max_time, integrate=True, calcs=True)
             if (n+1) <= CI_num:
-                CI_top = np.append(CI_top, [boot_plot], axis=0)
-                CI_top = np.sort(CI_top, axis=0)
-                CI_bot = np.append(CI_bot, [boot_plot], axis=0)
-                CI_bot = np.sort(CI_bot, axis=0)
+                plot_topCI = np.append(plot_topCI, [boot_plot], axis=0)
+                plot_topCI = np.sort(plot_topCI, axis=0)
+                plot_botCI = np.append(plot_botCI, [boot_plot], axis=0)
+                plot_botCI = np.sort(plot_botCI, axis=0)
+                for i in range(self.num_calcs):
+                    calc_topCI[i] = np.append(calc_topCI[i], boot_calcs[i][1])
+                    calc_topCI[i] = np.sort(calc_topCI[i])
+                    calc_botCI[i] = np.append(calc_botCI[i], boot_calcs[i][1])
+                    calc_botCI[i] = np.sort(calc_botCI[i])
             else:
-                if not np.all(np.maximum(CI_top[0], boot_plot) == CI_top[0]):
+                if not np.all(
+                        np.maximum(plot_topCI[0], boot_plot) == plot_topCI[0]):
                     if monitor:
                         print(', top CI increased', end="")
-                    CI_top = np.append(CI_top, [boot_plot], axis=0)
-                    CI_top = np.sort(CI_top, axis=0)
-                    CI_top = CI_top[1:]
-                if not np.all(np.minimum(CI_bot[-1], boot_plot) == CI_bot[-1]):
+                    plot_topCI = np.append(plot_topCI, [boot_plot], axis=0)
+                    plot_topCI = np.sort(plot_topCI, axis=0)
+                    plot_topCI = plot_topCI[1:]
+                if not np.all(
+                        np.minimum(plot_botCI[-1], boot_plot) == plot_botCI[-1]):
                     if monitor:
                         print(', bottom CI decreased', end="")
-                    CI_bot = np.append(CI_bot, [boot_plot], axis=0)
-                    CI_bot = np.sort(CI_bot, axis=0)
-                    CI_bot = CI_bot[:-1]
+                    plot_botCI = np.append(plot_botCI, [boot_plot], axis=0)
+                    plot_botCI = np.sort(plot_botCI, axis=0)
+                    plot_botCI = plot_botCI[:-1]
+                for i in range(self.num_calcs):
+                    if boot_calcs[i][1] > calc_topCI[i][0]:
+                        calc_topCI[i] = np.append(calc_topCI[i], boot_calcs[i][1])
+                        calc_topCI[i] = np.sort(calc_topCI[i])
+                        calc_topCI[i] = calc_topCI[i][1:]
+                    if boot_calcs[i][1] < calc_botCI[i][-1]:
+                        calc_botCI[i] = np.append(calc_botCI[i], boot_calcs[i][1])
+                        calc_botCI[i] = np.sort(calc_botCI[i])
+                        calc_botCI[i] = calc_botCI[i][:-1]
             if monitor:
                 print()
 
-        return (CI_top[0], CI_bot[-1]), smooth_ts_out
+        calc_top_cutoffs = [c[0] for c in calc_topCI]
+        calc_bot_cutoffs = [c[0] for c in calc_botCI]
+        return ((plot_topCI[0], plot_botCI[-1]),
+                (calc_top_cutoffs, calc_bot_cutoffs),
+                smooth_ts_out)
 
     def _solved_kin_sys(self, conc0, ks, times):
         """Solves the system of differential equations for given values

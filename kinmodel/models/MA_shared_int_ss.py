@@ -38,13 +38,21 @@ model = KineticModel(
     bottom_plot=[0, 3],
     sort_order=[1, 3, 2, 0],
     int_eqn=[
-            lambda cs, ks: (ks[0]*cs[0]**2*cs[1])/(cs[0]+ks[2]),
             lambda cs, ks: ks[1]*cs[3],
+            lambda cs, ks: (ks[0]*cs[0]**2*cs[1])/(cs[0]+ks[2]),
             lambda cs, ks: (ks[1]*cs[3]*cs[0])/(cs[0]+ks[2]), ],
     int_eqn_desc=[
-            "(k1*Ac^2*E)/(Ac+K)",
             "k_2*An",
+            "(k1*Ac^2*E)/(Ac+K)",
             "(k_2*An*Ac)/(Ac+K)", ],
+    calcs=[
+            lambda cs, ks, ints: max(cs[:, 3]),
+            lambda cs, ks, ints: cs[:, 3][-1],
+            lambda cs, ks, ints: ints[1][1]/ks[4], ],
+    calcs_desc=[
+            "Maximum An",
+            "Final An",
+            "An yield from (∫k1*Ac^2*E)/(Ac+K))dt/E0"],
     lifetime_conc=[3],
     rectime_conc=[0],
     )

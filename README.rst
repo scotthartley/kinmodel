@@ -63,7 +63,6 @@ the following form:
    import textwrap
    from kinmodel import KineticModel
 
-
    def equations(concs, t, *ks):
        Ac, E, U, An = concs
        k1, k_2, K = ks
@@ -76,7 +75,7 @@ the following form:
 
 
    model = KineticModel(
-       name="shared_int_ss",
+       name="MA_shared_int_ss",
        description=textwrap.dedent("""\
            Simple model with shared acylpyridinium intermediate:
 
@@ -84,7 +83,8 @@ the following form:
                I + Ac <==> An     (k2, k-2)
                     I ---> Ac     (k3)
 
-               Steady-state approximation with K=k3/k2"""),
+           Steady-state approximation with K=k3/k2.\
+           """),
        kin_sys=equations,
        ks_guesses=[0.02, 0.03, 10],
        ks_constant=[],
@@ -99,13 +99,21 @@ the following form:
        bottom_plot=[0, 3],
        sort_order=[1, 3, 2, 0],
        int_eqn=[
-               lambda cs, ks: (ks[0]*cs[0]**2*cs[1])/(cs[0]+ks[2]),
                lambda cs, ks: ks[1]*cs[3],
+               lambda cs, ks: (ks[0]*cs[0]**2*cs[1])/(cs[0]+ks[2]),
                lambda cs, ks: (ks[1]*cs[3]*cs[0])/(cs[0]+ks[2]), ],
        int_eqn_desc=[
-               "(k1*Ac^2*E)/(Ac+K)",
                "k_2*An",
-               "(k_2*An*Ac)/(Ac+K)",] ,
+               "(k1*Ac^2*E)/(Ac+K)",
+               "(k_2*An*Ac)/(Ac+K)", ],
+       calcs=[
+               lambda cs, ks, ints: max(cs[:, 3]),
+               lambda cs, ks, ints: cs[:, 3][-1],
+               lambda cs, ks, ints: ints[1][1]/ks[4], ],
+       calcs_desc=[
+               "Maximum An",
+               "Final An",
+               "An yield from (∫k1*Ac^2*E)/(Ac+K))dt/E0"],
        lifetime_conc=[3],
        rectime_conc=[0],
        )
@@ -115,6 +123,9 @@ concentration (S1 in the example) passed first, followed by the others.
 That is, the total number of entries for starting_concs_guesses and
 starting_concs_constant should be equal to the number of species, with
 the variable ones always listed first.
+
+These models can be added to the defaults list, but ``from kinmodel``
+needs to be replaced with ``from ..KineticModel``.
 
 Models can also be defined with the IndirectKineticModel class. This
 allows normal KineticModel mechanisms to be used in cases where the

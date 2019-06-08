@@ -46,7 +46,8 @@ def prepare_text(
             reg_info['fit_ks'] + reg_info['fixed_ks'],
             reg_info['fit_concs'][ds_num] + reg_info['fixed_concs'][ds_num],
             num_points,
-            time_exp_factor*max(reg_info['dataset_times'][ds_num]))
+            time_exp_factor*max(reg_info['dataset_times'][ds_num]),
+            integrate=True, calcs=True)
 
     num_ks = len(reg_info['fit_ks'])
     num_concs = len(reg_info['fit_concs'][ds_num])

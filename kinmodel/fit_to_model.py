@@ -180,12 +180,12 @@ def prepare_text(
                 calc_label = calculations[n][0]
                 text += (f"{calc_label:>{model.len_calcs_desc}} "
                          f"= {calculations[n][1]:+5e} "
-                         f"({reg_info['boot_calc_CIs'][1][n]:+5e}, "
-                         f"{reg_info['boot_calc_CIs'][0][n]:+5e})\n")
+                         f"({reg_info['boot_calc_CIs'][ds_num][1][n]:+5e}, "
+                         f"{reg_info['boot_calc_CIs'][ds_num][0][n]:+5e})\n")
         else:
             for calc in calculations:
                 calc_label = calc[0]
-                text += (f"{calc_label:>{model.len_calcs_desc+5}} "
+                text += (f"{calc_label:>{model.len_calcs_desc}} "
                          f"= {calc[1]:+5e}\n")
         text += "\n"
 

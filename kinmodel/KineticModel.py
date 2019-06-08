@@ -376,6 +376,7 @@ class KineticModel:
             reg_info['boot_param_CIs'] = []
             reg_info['boot_plot_CIs'] = []
             reg_info['boot_plot_ts'] = []
+            reg_info['boot_calc_CIs'] = []
             for d in range(num_datasets):
                 if monitor:
                     print(f"Simulating bootstrap dataset {d+1} of "
@@ -385,7 +386,7 @@ class KineticModel:
                 boot_CIs, boot_calc_CIs, boot_ts = self.bootstrap_plot_CIs(
                         reg_info, d, boot_CI, boot_points, boot_t_exp, monitor)
                 reg_info['boot_plot_CIs'].append(boot_CIs)
-                reg_info['boot_calc_CIs'] = boot_calc_CIs
+                reg_info['boot_calc_CIs'].append(boot_calc_CIs)
                 reg_info['boot_plot_ts'].append(boot_ts)
 
         return reg_info

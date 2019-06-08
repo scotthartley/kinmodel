@@ -54,7 +54,7 @@ model = KineticModel(
     calcs=[
             lambda cs, ks, ints: max(cs[:, 3]),
             lambda cs, ks, ints: cs[:, 3][-1],
-            lambda cs, ks, ints: ints[1][1]/ks[4], ],
+            lambda cs, ks, ints: ints[1][1]/ks[5], ],
     calcs_desc=[
             "Maximum An",
             "Final An",

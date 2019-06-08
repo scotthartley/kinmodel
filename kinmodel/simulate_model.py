@@ -47,8 +47,8 @@ def prepare_text(model, ks, concs, time, num_points, full_output):
     """Generates the output text.
 
     """
-    sim_ts, sim_concs, integrals = model.simulate(ks, concs, num_points, time,
-                                                  integrate=True)
+    sim_ts, sim_concs, integrals, calculations = model.simulate(
+            ks, concs, num_points, time, integrate=True, calcs=True)
 
     all_ks, all_concs = _resolve_parameters(model, ks, concs)
 
@@ -97,10 +97,19 @@ def prepare_text(model, ks, concs, time, num_points, full_output):
     if integrals:
         text += "Integrals:\n"
         text += "\n"
-        for n in integrals:
-            integral_label = "∫ " + n + " dt"
+        for integral in integrals:
+            integral_label = "∫ " + integral[0] + " dt"
             text += (f"{integral_label:>{model.len_int_eqn_desc+5}} "
-                     f"= {integrals[n]:+.5e}\n")
+                     f"= {integral[1]:+.5e}\n")
+        text += "\n"
+
+    if calculations:
+        text += "Calculations:\n"
+        text += "\n"
+        for calc in calculations:
+            calc_label = calc[0]
+            text += (f"{calc_label:>{model.len_calcs_desc}} "
+                     f"= {calc[1]:+5e}\n")
         text += "\n"
 
     text += "Concentration extremes:\n"
@@ -132,7 +141,7 @@ def prepare_text(model, ks, concs, time, num_points, full_output):
         text += "Recovery times:\n"
         text += "\n"
         for n in model.rectime_conc:
-            conc_list = sim_concs[:,n]
+            conc_list = sim_concs[:, n]
             initial_conc = conc_list[0]
             min_ind = conc_list.argmin()
             for f in model.rectime_fracs:
@@ -164,8 +173,8 @@ def generate_plot(model, ks, concs, time, num_points, output_filename,
     """
     rcParams.update(PLT_PARAMS)
 
-    smooth_ts_plot, smooth_curves_plot, _ = model.simulate(
-            ks, concs, num_points, time, integrate=False)
+    smooth_ts_plot, smooth_curves_plot, _, _ = model.simulate(
+            ks, concs, num_points, time, integrate=False, calcs=False)
 
     all_ks, all_concs = _resolve_parameters(model, ks, concs)
 

@@ -181,8 +181,8 @@ class KineticModel:
     def num_calcs(self):
         return len(self.calcs)
 
-    def simulate(self, ks, concs, num_points, max_time, integrate=True,
-                 calcs=True):
+    def simulate(self, ks, concs, num_points, max_time, integrate=False,
+                 calcs=False):
         """Using _solved_kin_sys, solves the system of diff. equations
         for a given number of points, maximum time, and with optional
         integration.

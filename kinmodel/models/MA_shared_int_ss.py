@@ -22,7 +22,8 @@ model = KineticModel(
             I + Ac <==> An     (k2, k-2)
                  I ---> Ac     (k3)
 
-        Steady-state approximation with K=k3/k2.\
+        Steady-state approximation with K=k3/k2.
+        Orders: k1, k_2, K; Ac, E, U, An.\
         """),
     kin_sys=equations,
     ks_guesses=[0.02, 0.03, 10],
@@ -40,19 +41,25 @@ model = KineticModel(
     int_eqn=[
             lambda cs, ks: ks[1]*cs[3],
             lambda cs, ks: (ks[0]*cs[0]**2*cs[1])/(cs[0]+ks[2]),
-            lambda cs, ks: (ks[1]*cs[3]*cs[0])/(cs[0]+ks[2]), ],
+            lambda cs, ks: (ks[1]*cs[3]*cs[0])/(cs[0]+ks[2]),
+            lambda cs, ks: ks[0]*cs[1]*cs[0],
+            ],
     int_eqn_desc=[
             "k_2*An",
             "(k1*Ac^2*E)/(Ac+K)",
-            "(k_2*An*Ac)/(Ac+K)", ],
+            "(k_2*An*Ac)/(Ac+K)",
+            "k1*E*Ac",
+            ],
     calcs=[
             lambda cs, ks, ints: max(cs[:, 3]),
             lambda cs, ks, ints: cs[:, 3][-1],
-            lambda cs, ks, ints: ints[1][1]/ks[4], ],
+            lambda cs, ks, ints: ints[1][1]/cs[:, 1][0],
+            ],
     calcs_desc=[
             "Maximum An",
             "Final An",
-            "An yield from (∫k1*Ac^2*E)/(Ac+K))dt/E0"],
+            "An yield from (∫k1*Ac^2*E)/(Ac+K)dt)/E0"
+            ],
     lifetime_conc=[3],
     rectime_conc=[0],
     )

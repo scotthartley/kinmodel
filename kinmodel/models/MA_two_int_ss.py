@@ -24,7 +24,8 @@ model = KineticModel(
                  An <==> I2 + Ac  (k4, k_4)
                  I2 ---> Ac       (k5)
 
-        Steady-state approximation with K1=k3/k2, K2=k5/k_4.\
+        Steady-state approximation with K1=k3/k2, K2=k5/k_4.
+        Orders: k1, k4, K1, K2; Ac, E, U, An.\
         """),
     kin_sys=equations,
     ks_guesses=[0.02, 200, 10, 0.001],

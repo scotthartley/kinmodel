@@ -40,7 +40,8 @@ model = KineticModel(
                    C ---> DA1       (k2C)
                    E ---> U         (kEH)
 
-        Steady-state approximation with K = kiH/kiL and EM=kiC/kiL.\
+        Steady-state approximation with K = kiH/kiL and EM=kiC/kiL.
+        Orders: k1, K, EM, k2L, k2C, kEH; DA1, E, U, DA2, DA3, C.\
         """),
     kin_sys=equations,
     ks_guesses=[0.02, 100, 50, 1, 1, 0],

@@ -24,7 +24,8 @@ model = KineticModel(
                  I ---> Ac     (k3)
                  E ---> U      (k4)
 
-        Steady-state approximation with K=k3/k2. k4 is fixed.\
+        Steady-state approximation with K=k3/k2. k4 is fixed.
+        Orders: k1, k_2, K, k4; Ac, E, U, An.\
         """),
     kin_sys=equations,
     ks_guesses=[0.02, 0.03, 10],
@@ -54,11 +55,11 @@ model = KineticModel(
     calcs=[
             lambda cs, ks, ints: max(cs[:, 3]),
             lambda cs, ks, ints: cs[:, 3][-1],
-            lambda cs, ks, ints: ints[1][1]/ks[5], ],
+            lambda cs, ks, ints: ints[1][1]/cs[:, 1][0], ],
     calcs_desc=[
             "Maximum An",
             "Final An",
-            "An yield from (∫k1*Ac^2*E)/(Ac+K))dt/E0"],
+            "An yield from (∫k1*Ac^2*E)/(Ac+K)dt)/E0"],
     lifetime_conc=[3],
     rectime_conc=[0],
     )

@@ -24,7 +24,8 @@ model = KineticModel(
                  I ---> Ac     (k3)
                  E ---> U      (k4)
 
-        Steady-state approximation with K=k3/k2.\
+        Steady-state approximation with K=k3/k2.
+        Orders: k1, k_2, k4, K; Ac, E, U, An.\
         """),
     kin_sys=equations,
     ks_guesses=[0.02, 0.03, 0.1, 10],
@@ -41,10 +42,10 @@ model = KineticModel(
     sort_order=[1, 3, 2, 0],
     int_eqn=[
             lambda cs, ks: ks[1]*cs[3],
-            lambda cs, ks: (ks[0]*cs[0]**2*cs[1])/(cs[0]+ks[3]),
-            lambda cs, ks: (ks[1]*cs[3]*cs[0])/(cs[0]+ks[3]),
+            lambda cs, ks: (ks[0]*cs[0]**2*cs[1])/(cs[0]+ks[2]),
+            lambda cs, ks: (ks[1]*cs[3]*cs[0])/(cs[0]+ks[2]),
             lambda cs, ks: ks[0]*cs[1]*cs[0],
-            lambda cs, ks: ks[2]*cs[1], ],
+            lambda cs, ks: ks[3]*cs[1], ],
     int_eqn_desc=[
             "k_2*An",
             "(k1*Ac^2*E)/(Ac+K)",
@@ -54,11 +55,11 @@ model = KineticModel(
     calcs=[
             lambda cs, ks, ints: max(cs[:, 3]),
             lambda cs, ks, ints: cs[:, 3][-1],
-            lambda cs, ks, ints: ints[1][1]/ks[5], ],
+            lambda cs, ks, ints: ints[1][1]/cs[:, 1][0], ],
     calcs_desc=[
             "Maximum An",
             "Final An",
-            "An yield from (∫k1*Ac^2*E)/(Ac+K))dt/E0"],
+            "An yield from (∫k1*Ac^2*E)/(Ac+K)dt)/E0"],
     lifetime_conc=[3],
     rectime_conc=[0],
     )

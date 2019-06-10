@@ -16,6 +16,8 @@ model = KineticModel(
         Simple first order decay
 
             E ---> U       (k)\
+
+        Orders: k; E, U.
         """),
     kin_sys=equations,
     ks_guesses=[1],

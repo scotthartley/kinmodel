@@ -38,7 +38,8 @@ model = KineticModel(
         observed concentrations: Ac (total diacid), L (total linear
         anhydride), C (total cyclic anhydride), E (EDCI), and U (urea).
 
-        Steady-state approximation in I: K = kiAc/kiL, EM - kiC/kiL.\
+        Steady-state approximation in I: K = kiAc/kiL, EM - kiC/kiL.
+        Orders: k1, K, EM, k2L, k2C, kE; Ac, E, U, L, C.\
         """),
     kin_sys=equations,
     ks_guesses=[0.02, 100, 10, 0.5, 1, 1],

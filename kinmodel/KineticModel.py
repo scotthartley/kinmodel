@@ -216,7 +216,7 @@ class KineticModel:
             for i in range(len(self.int_eqn)):
                 integral_func = []
                 for cs in smooth_curves_out:
-                    integral_func.append(self.int_eqn[i](cs, ks))
+                    integral_func.append(self.int_eqn[i](cs, all_ks))
                 integrals.append(
                         (self.int_eqn_desc[i],
                          scipy.integrate.simps(integral_func, dx=deltaT)))

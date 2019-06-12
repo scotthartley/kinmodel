@@ -113,6 +113,10 @@ def fit_kinetics():
         help=("All plots share same max y axis values"),
         action='store_true')
     parser.add_argument(
+        "-np", "--no_parameters",
+        help=("Do not print parameters on plots"),
+        action='store_true')
+    parser.add_argument(
         "-u", "--units",
         help=("Time and concentration units, each as a single word"),
         nargs=2, type=str)
@@ -156,5 +160,6 @@ def fit_kinetics():
             bootstrap_force1st=args.bootstrap_force1st,
             more_stats=args.more_stats,
             common_y=args.common_y,
+            plot_no_params=args.no_parameters,
             units=args.units,
             simulate=not args.no_simulate_direct)

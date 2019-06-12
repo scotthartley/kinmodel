@@ -220,7 +220,8 @@ def prepare_text(
 
 
 def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
-                  output_filename, boot_CI=95, common_y=True, units=None):
+                  output_filename, boot_CI=95, common_y=True, no_params=False,
+                  units=None):
     """Generates the output plot.
 
     Number of points must be specified. Saved as pdf to output_filename.
@@ -339,16 +340,18 @@ def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
             plt.ylabel(YLABEL)
 
         # Print parameters on plot.
-        pars_to_print = ""
-        for n in range(model.num_params):
-            pars_to_print += "{} = {:.2e}\n".format(model.parameter_names[n],
-                                                    dataset_params[n])
-        for n in range(model.num_consts):
-            pars_to_print += "{} = {:.2e}\n".format(model.constant_names[n],
-                                                    dataset_consts[n])
+        if not no_params:
+            pars_to_print = ""
+            for n in range(model.num_params):
+                pars_to_print += "{} = {:.2e}\n".format(
+                        model.parameter_names[n], dataset_params[n])
+            for n in range(model.num_consts):
+                pars_to_print += "{} = {:.2e}\n".format(
+                        model.constant_names[n], dataset_consts[n])
 
-        plt.text(PARAM_LOC[0], PARAM_LOC[1], pars_to_print, transform=plt.gca().transAxes,
-                 fontsize=rcParams['legend.fontsize'])
+            plt.text(PARAM_LOC[0], PARAM_LOC[1], pars_to_print,
+                     transform=plt.gca().transAxes,
+                     fontsize=rcParams['legend.fontsize'])
 
     plt.tight_layout()
     plt.savefig(output_filename)
@@ -363,7 +366,8 @@ def fit_and_output(
             text_full_output=True, monitor=False,
             bootstrap_iterations=100, bootstrap_CI=95,
             bootstrap_force1st=False, bootstrap_nodes=None, more_stats=False,
-            common_y=True, units=None, simulate=True, calcs=True):
+            common_y=True, plot_no_params=False, units=None, simulate=True,
+            calcs=True):
     """Carry out the fit of the model and output the data.
 
     """
@@ -404,7 +408,7 @@ def fit_and_output(
                              f"_{reg_info['dataset_names'][n]}.pdf")
             generate_plot(model, reg_info, n, plot_output_points,
                           plot_time_extension_factor, plot_filename,
-                          bootstrap_CI, common_y, units)
+                          bootstrap_CI, common_y, plot_no_params, units)
 
     if (type(model) is IndirectKineticModel) and simulate:
         for n in range(reg_info['num_datasets']):

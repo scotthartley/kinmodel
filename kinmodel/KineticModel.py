@@ -393,12 +393,42 @@ class KineticModel:
                 reg_info['boot_plot_ts'].append(boot_ts)
 
             if boot_cc_ints:
-                self.confidence_contours(reg_info, datasets, num_datasets,
-                                         boot_cc_ints, monitor)
+                reg_info['conf_contours'] = self.confidence_contours(
+                        reg_info, datasets, num_datasets, boot_cc_ints,
+                        monitor, boot_nodes)
         return reg_info
 
     def confidence_contours(self, reg_info, datasets, num_datasets,
-                            num_intervals, monitor):
+                            num_intervals, monitor, nodes):
+        """Generates confidence contour data around each pair of fit
+        parameters.
+
+        Returns a list of the two indices followed by the data as a list
+        of tuples (p1, p2, ssr).
+        """
+
+        def _results(inp):
+            (p1, p2), p1_ind, p2_ind, var_params, var_params_ind, lock, c = inp
+            if monitor:
+                with lock:
+                    c.value += 1
+                    print(f"Confidence contours for "
+                          f"{all_parameter_names[p1_ind]} and "
+                          f"{all_parameter_names[p2_ind]}, "
+                          f"fit {c.value} of {total_p_combos}")
+            cc_results = scipy.optimize.least_squares(
+                    self._residual_fix, var_params,
+                    bounds=self.bounds,
+                    args=(var_params_ind, [p1, p2],
+                          const_params_ind, datasets,
+                          reg_info['parameter_constants'], False))
+            ssr = cc_results.cost * 2
+            return p1, p2, ssr
+
+        all_conc0_names = ([f"{n}({i+1})" for i in range(num_datasets)
+                            for n in self.conc0_var_names])
+        all_parameter_names = self.k_var_names + all_conc0_names
+
         ks_bot = list(reg_info['boot_param_CIs'][0][0][0])
         # Flattens list.
         cs_bot = ([i for s in
@@ -415,6 +445,7 @@ class KineticModel:
         all_params_top = ks_top + cs_top
         total_num_params = (self.num_var_ks
                             + self.num_var_concs0*num_datasets)
+        results = []
         for p1_ind in range(total_num_params-1):
             for p2_ind in range(p1_ind+1, total_num_params):
                 p1_low, p1_high = self._bracket_param(
@@ -429,26 +460,27 @@ class KineticModel:
                         p1_high, p1_low, num_intervals)
                 p2_vals = self._divide_into_intervals(
                         p2_high, p2_low, num_intervals)
-                print(p1_ind, p2_ind)
-                for p1, p2 in itertools.product(p1_vals, p2_vals):
-                    var_params = list(reg_info['all_params'])
-                    var_params_ind = [x for x in range(total_num_params)]
-                    for r in sorted([p1_ind, p2_ind], reverse=True):
-                        del var_params[r]
-                        del var_params_ind[r]
 
-                    const_params = [p1, p2]
-                    const_params_ind = [p1_ind, p2_ind]
+                var_params = list(reg_info['all_params'])
+                var_params_ind = [x for x in range(total_num_params)]
+                for r in sorted([p1_ind, p2_ind], reverse=True):
+                    del var_params[r]
+                    del var_params_ind[r]
+                const_params_ind = [p1_ind, p2_ind]
 
-                    cc_results = scipy.optimize.least_squares(
-                            self._residual_fix, var_params,
-                            bounds=self.bounds,
-                            args=(var_params_ind, const_params,
-                                  const_params_ind, datasets,
-                                  reg_info['parameter_constants'], False))
-                    ssr = cc_results.cost * 2
-                    if monitor:
-                        print(p1, p2, ssr)
+                p_combos = [p for p in itertools.product(p1_vals, p2_vals)]
+                total_p_combos = len(p_combos)
+                with ProcessPool(nodes=nodes) as p:
+                    lock = multiprocess.Manager().Lock()
+                    counter = multiprocess.Manager().Value('i', 0)
+                    cc_results = p.map(
+                            _results,
+                            [(ps, p1_ind, p2_ind, var_params,
+                              var_params_ind, lock, counter)
+                             for ps in p_combos])
+                    results.append([p1_ind, p2_ind, cc_results])
+
+        return results
 
     def _pure_residuals(self, datasets, reg_info, parameter_constants):
         """Returns unweighted residuals.

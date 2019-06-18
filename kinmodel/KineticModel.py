@@ -239,11 +239,16 @@ class KineticModel:
                      conc0_guesses=None, ks_const=None,
                      conc0_const=None, N_boot=0, monitor=False,
                      boot_CI=95, boot_points=1000, boot_t_exp=1.1,
-                     boot_force1st=False, boot_nodes=None):
+                     boot_force1st=False, boot_nodes=None,
+                     boot_cc_ints=10):
         """Performs a fit to a set of datasets containing time and
         concentration data.
 
         """
+        def _divide_into_intervals(top, bottom, num):
+            delta = (top - bottom)/(num - 1)
+            return [bottom + i*delta for i in range(num)]
+
         num_datasets = len(datasets)
         total_points = sum(d.total_data_points for d in datasets)
 
@@ -389,6 +394,53 @@ class KineticModel:
                 reg_info['boot_calc_CIs'].append(boot_calc_CIs)
                 reg_info['boot_plot_ts'].append(boot_ts)
 
+            if boot_cc_ints:
+                ks_bot = list(reg_info['boot_param_CIs'][0][0][0])
+                # Flattens list.
+                cs_bot = ([i for s in
+                          ([list(reg_info['boot_param_CIs'][d][1][0])
+                            for d in range(num_datasets)])
+                          for i in s])
+                ks_top = list(reg_info['boot_param_CIs'][0][0][1])
+                # Flattens list.
+                cs_top = ([i for s in
+                          ([list(reg_info['boot_param_CIs'][d][1][1])
+                            for d in range(num_datasets)])
+                          for i in s])
+                all_params_bot = ks_bot + cs_bot
+                all_params_top = ks_top + cs_top
+                total_num_params = (self.num_var_ks
+                                    + self.num_var_concs0*num_datasets)
+                for p1_ind in range(total_num_params-1):
+                    for p2_ind in range(p1_ind+1, total_num_params):
+                        p1_vals = _divide_into_intervals(
+                                all_params_top[p1_ind],
+                                all_params_bot[p1_ind],
+                                boot_cc_ints)
+                        p2_vals = _divide_into_intervals(
+                                all_params_top[p2_ind],
+                                all_params_bot[p2_ind],
+                                boot_cc_ints)
+                        print(p1_ind, p2_ind)
+                        for p1, p2 in itertools.product(p1_vals, p2_vals):
+                            var_params = list(results['x'])
+                            var_params_ind = [x for x in range(total_num_params)]
+                            for r in sorted([p1_ind, p2_ind], reverse=True):
+                                del var_params[r]
+                                del var_params_ind[r]
+
+                            const_params = [p1, p2]
+                            const_params_ind = [p1_ind, p2_ind]
+
+                            cc_results = scipy.optimize.least_squares(
+                                    self._residual_fix, var_params,
+                                    bounds=self.bounds,
+                                    args=(var_params_ind, const_params,
+                                          const_params_ind, datasets,
+                                          parameter_constants, False))
+                            ssr = cc_results.cost * 2
+                            if monitor:
+                                print(p1, p2, ssr)
         return reg_info
 
     def _pure_residuals(self, datasets, reg_info, parameter_constants):
@@ -613,6 +665,27 @@ class KineticModel:
             print(f"Current ssr (weighted): {sum([n**2 for n in residuals])}")
 
         return np.array(residuals)
+
+    def _residual_fix(self, parameters, parameters_ind, fixed_parameters,
+                      fixed_parameters_ind, datasets, constants,
+                      monitor=False):
+        """Modified version of residual that allows parameters to be fixed.
+
+        parameters: list of parameters that will be optimized.
+        parameters_ind: list of indices for the parameters that will be
+            optimized.
+        fixed_parameters: list of parameters that will not be optimized.
+        fixed_parameters_ind: list of indices for the parameters that will not
+            be optimized.
+        """
+
+        rebuilt_params = [0]*(len(parameters_ind) + len(fixed_parameters_ind))
+        for n in range(len(parameters_ind)):
+            rebuilt_params[parameters_ind[n]] = parameters[n]
+        for n in range(len(fixed_parameters_ind)):
+            rebuilt_params[fixed_parameters_ind[n]] = fixed_parameters[n]
+
+        return self._residual(rebuilt_params, datasets, constants, monitor)
 
     @staticmethod
     def _dataset_concs(n, c_list, c_per_n):

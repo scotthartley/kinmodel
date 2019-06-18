@@ -19,6 +19,7 @@ FIGURE_SIZE_2 = (3.3, 5.2)
 YLABEL = "C"
 XLABEL = "t"
 PARAM_LOC = [0.65, 0.1]
+CONTOUR_LEVELS = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 
 PLT_PARAMS = {'font.size': 8,
               'font.family': 'sans-serif',
@@ -26,7 +27,8 @@ PLT_PARAMS = {'font.size': 8,
               'lines.linewidth': 0.75,
               'axes.linewidth': 0.75,
               'legend.frameon': False,
-              'legend.fontsize': 6}
+              'legend.fontsize': 6,
+              'image.cmap': 'plasma'}
 
 # Prevent line breaking and format numbers from np
 np.set_printoptions(linewidth=np.nan)
@@ -358,15 +360,58 @@ def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
     plt.close()
 
 
+def prepare_conf_contours(pair):
+    text = f"{pair[0][0]} {pair[0][1]} ssr\n"
+    for result in pair[1]:
+        text += " ".join(str(t) for t in result)
+        text += "\n"
+    return text
+
+
+def generate_cc_plot(pair, num_points, output_filename):
+    rcParams.update(PLT_PARAMS)
+    plt.figure(figsize=FIGURE_SIZE_1)
+    data = np.array(pair[1])
+    xlist = data[:, 0]
+    ylist = data[:, 1]
+    zlist = data[:, 2]
+    zlist_inv = np.min(zlist)/zlist
+    X = [xlist[n] for n in range(0, len(xlist), num_points)]
+    Y = ylist[:num_points]
+    Z = np.reshape(zlist_inv, (num_points, num_points)).T
+    cpf = plt.contourf(X, Y, Z, CONTOUR_LEVELS)
+    plt.colorbar(cpf)
+    plt.xlabel(pair[0][0])
+    plt.ylabel(pair[0][1])
+    plt.tight_layout()
+    plt.savefig(output_filename)
+    plt.close()
+
+
 def fit_and_output(
-            model, data_filename, fixed_ks=None, fixed_concs=None,
-            k_guesses=None, conc_guesses=None, text_output_points=3000,
-            text_time_extension_factor=3.0, text_output=True,
-            plot_output_points=1000, plot_time_extension_factor=1.1,
-            text_full_output=True, monitor=False,
-            bootstrap_iterations=100, bootstrap_CI=95,
-            bootstrap_force1st=False, bootstrap_nodes=None, more_stats=False,
-            common_y=True, plot_no_params=False, units=None, simulate=True,
+            model,
+            data_filename,
+            fixed_ks=None,
+            fixed_concs=None,
+            k_guesses=None,
+            conc_guesses=None,
+            text_output_points=3000,
+            text_time_extension_factor=3.0,
+            text_output=True,
+            plot_output_points=1000,
+            plot_time_extension_factor=1.1,
+            text_full_output=True,
+            monitor=False,
+            bootstrap_iterations=100,
+            bootstrap_CI=95,
+            bootstrap_force1st=False,
+            bootstrap_nodes=None,
+            confidence_contour_intervals=None,
+            more_stats=False,
+            common_y=True,
+            plot_no_params=False,
+            units=None,
+            simulate=True,
             calcs=True):
     """Carry out the fit of the model and output the data.
 
@@ -381,11 +426,14 @@ def fit_and_output(
             boot_points=text_output_points,
             boot_t_exp=text_time_extension_factor,
             boot_force1st=bootstrap_force1st,
-            boot_nodes=bootstrap_nodes)
+            boot_nodes=bootstrap_nodes,
+            cc_ints=confidence_contour_intervals)
 
     file_suffix = ""
     if bootstrap_force1st:
         file_suffix += "_ff"
+
+    base_filename = f"{data_filename}_{model.name}{file_suffix}"
 
     for n in range(reg_info['num_datasets']):
         output_text = prepare_text(
@@ -393,8 +441,7 @@ def fit_and_output(
                 text_time_extension_factor, data_filename,
                 text_full_output, more_stats)
         if text_output:
-            text_filename = (f"{data_filename}_{model.name}"
-                             f"{file_suffix}"
+            text_filename = (f"{base_filename}"
                              f"_{reg_info['dataset_names'][n]}.txt")
             with open(text_filename, 'w', encoding='utf-8') as write_file:
                 print(output_text, file=write_file)
@@ -403,8 +450,7 @@ def fit_and_output(
 
     if plot_output_points:
         for n in range(reg_info['num_datasets']):
-            plot_filename = (f"{data_filename}_{model.name}"
-                             f"{file_suffix}"
+            plot_filename = (f"{base_filename}"
                              f"_{reg_info['dataset_names'][n]}.pdf")
             generate_plot(model, reg_info, n, plot_output_points,
                           plot_time_extension_factor, plot_filename,
@@ -412,7 +458,7 @@ def fit_and_output(
 
     if (type(model) is IndirectKineticModel) and simulate:
         for n in range(reg_info['num_datasets']):
-            sim_filename = (f"{data_filename}_{model.name}_sim_"
+            sim_filename = (f"{base_filename}_sim_"
                             f"{reg_info['dataset_names'][n]}")
             simulate_and_output(
                     model=model.parent_model,
@@ -428,3 +474,17 @@ def fit_and_output(
                     units=units,
                     plot_time=(max(reg_info['dataset_times'][n])
                                * plot_time_extension_factor))
+
+    if confidence_contour_intervals:
+        base_cc_filename = base_filename + "_cc"
+        for param_pair in reg_info['conf_contours']:
+            cc_filename = (base_cc_filename +
+                           f"_{param_pair[0][0]}-{param_pair[0][1]}")
+            cc_output_text = prepare_conf_contours(param_pair)
+            cc_text_filename = cc_filename + ".txt"
+            with open(cc_text_filename, 'w', encoding='utf-8') as write_file:
+                print(cc_output_text, file=write_file)
+
+            cc_plot_filename = cc_filename + ".pdf"
+            generate_cc_plot(param_pair, confidence_contour_intervals,
+                             cc_plot_filename)

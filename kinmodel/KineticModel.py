@@ -240,7 +240,7 @@ class KineticModel:
                      conc0_const=None, N_boot=0, monitor=False,
                      boot_CI=95, boot_points=1000, boot_t_exp=1.1,
                      boot_force1st=False, boot_nodes=None,
-                     boot_cc_ints=10):
+                     cc_ints=10):
         """Performs a fit to a set of datasets containing time and
         concentration data.
 
@@ -392,9 +392,9 @@ class KineticModel:
                 reg_info['boot_calc_CIs'].append(boot_calc_CIs)
                 reg_info['boot_plot_ts'].append(boot_ts)
 
-            if boot_cc_ints:
+            if cc_ints:
                 reg_info['conf_contours'] = self.confidence_contours(
-                        reg_info, datasets, num_datasets, boot_cc_ints,
+                        reg_info, datasets, num_datasets, cc_ints,
                         monitor, boot_nodes)
         return reg_info
 
@@ -478,7 +478,9 @@ class KineticModel:
                             [(ps, p1_ind, p2_ind, var_params,
                               var_params_ind, lock, counter)
                              for ps in p_combos])
-                    results.append([p1_ind, p2_ind, cc_results])
+                    results.append([(all_parameter_names[p1_ind],
+                                     all_parameter_names[p2_ind]),
+                                   cc_results])
 
         return results
 

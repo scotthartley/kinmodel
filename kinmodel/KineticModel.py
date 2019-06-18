@@ -245,10 +245,6 @@ class KineticModel:
         concentration data.
 
         """
-        def _divide_into_intervals(top, bottom, num):
-            delta = (top - bottom)/(num - 1)
-            return [bottom + i*delta for i in range(num)]
-
         num_datasets = len(datasets)
         total_points = sum(d.total_data_points for d in datasets)
 
@@ -308,12 +304,14 @@ class KineticModel:
                         max_exp_concs[n] = np.nanmax(d.concs[:, n])
         reg_info['max_exp_concs'] = max_exp_concs
 
+        reg_info['all_params'] = results['x']
         reg_info['fit_ks'] = list(results['x'][:self.num_var_ks])
         fit_concs = list(results['x'][self.num_var_ks:])
         reg_info['fit_concs'] = []
         for n in range(num_datasets):
             reg_info['fit_concs'].append(self._dataset_concs(
                     n, fit_concs, self.num_var_concs0))
+        reg_info['parameter_constants'] = parameter_constants
         reg_info['fixed_ks'] = list(parameter_constants[:self.num_const_ks])
         fixed_concs = list(parameter_constants[self.num_const_ks:])
         reg_info['fixed_concs'] = []
@@ -395,53 +393,62 @@ class KineticModel:
                 reg_info['boot_plot_ts'].append(boot_ts)
 
             if boot_cc_ints:
-                ks_bot = list(reg_info['boot_param_CIs'][0][0][0])
-                # Flattens list.
-                cs_bot = ([i for s in
-                          ([list(reg_info['boot_param_CIs'][d][1][0])
-                            for d in range(num_datasets)])
-                          for i in s])
-                ks_top = list(reg_info['boot_param_CIs'][0][0][1])
-                # Flattens list.
-                cs_top = ([i for s in
-                          ([list(reg_info['boot_param_CIs'][d][1][1])
-                            for d in range(num_datasets)])
-                          for i in s])
-                all_params_bot = ks_bot + cs_bot
-                all_params_top = ks_top + cs_top
-                total_num_params = (self.num_var_ks
-                                    + self.num_var_concs0*num_datasets)
-                for p1_ind in range(total_num_params-1):
-                    for p2_ind in range(p1_ind+1, total_num_params):
-                        p1_vals = _divide_into_intervals(
-                                all_params_top[p1_ind],
-                                all_params_bot[p1_ind],
-                                boot_cc_ints)
-                        p2_vals = _divide_into_intervals(
-                                all_params_top[p2_ind],
-                                all_params_bot[p2_ind],
-                                boot_cc_ints)
-                        print(p1_ind, p2_ind)
-                        for p1, p2 in itertools.product(p1_vals, p2_vals):
-                            var_params = list(results['x'])
-                            var_params_ind = [x for x in range(total_num_params)]
-                            for r in sorted([p1_ind, p2_ind], reverse=True):
-                                del var_params[r]
-                                del var_params_ind[r]
-
-                            const_params = [p1, p2]
-                            const_params_ind = [p1_ind, p2_ind]
-
-                            cc_results = scipy.optimize.least_squares(
-                                    self._residual_fix, var_params,
-                                    bounds=self.bounds,
-                                    args=(var_params_ind, const_params,
-                                          const_params_ind, datasets,
-                                          parameter_constants, False))
-                            ssr = cc_results.cost * 2
-                            if monitor:
-                                print(p1, p2, ssr)
+                self.confidence_contours(reg_info, datasets, num_datasets,
+                                         boot_cc_ints, monitor)
         return reg_info
+
+    def confidence_contours(self, reg_info, datasets, num_datasets,
+                            num_intervals, monitor):
+        ks_bot = list(reg_info['boot_param_CIs'][0][0][0])
+        # Flattens list.
+        cs_bot = ([i for s in
+                  ([list(reg_info['boot_param_CIs'][d][1][0])
+                    for d in range(num_datasets)])
+                  for i in s])
+        ks_top = list(reg_info['boot_param_CIs'][0][0][1])
+        # Flattens list.
+        cs_top = ([i for s in
+                  ([list(reg_info['boot_param_CIs'][d][1][1])
+                    for d in range(num_datasets)])
+                  for i in s])
+        all_params_bot = ks_bot + cs_bot
+        all_params_top = ks_top + cs_top
+        total_num_params = (self.num_var_ks
+                            + self.num_var_concs0*num_datasets)
+        for p1_ind in range(total_num_params-1):
+            for p2_ind in range(p1_ind+1, total_num_params):
+                p1_low, p1_high = self._bracket_param(
+                        reg_info['all_params'][p1_ind],
+                        all_params_bot[p1_ind],
+                        all_params_top[p1_ind])
+                p2_low, p2_high = self._bracket_param(
+                        reg_info['all_params'][p2_ind],
+                        all_params_bot[p2_ind],
+                        all_params_top[p2_ind])
+                p1_vals = self._divide_into_intervals(
+                        p1_high, p1_low, num_intervals)
+                p2_vals = self._divide_into_intervals(
+                        p2_high, p2_low, num_intervals)
+                print(p1_ind, p2_ind)
+                for p1, p2 in itertools.product(p1_vals, p2_vals):
+                    var_params = list(reg_info['all_params'])
+                    var_params_ind = [x for x in range(total_num_params)]
+                    for r in sorted([p1_ind, p2_ind], reverse=True):
+                        del var_params[r]
+                        del var_params_ind[r]
+
+                    const_params = [p1, p2]
+                    const_params_ind = [p1_ind, p2_ind]
+
+                    cc_results = scipy.optimize.least_squares(
+                            self._residual_fix, var_params,
+                            bounds=self.bounds,
+                            args=(var_params_ind, const_params,
+                                  const_params_ind, datasets,
+                                  reg_info['parameter_constants'], False))
+                    ssr = cc_results.cost * 2
+                    if monitor:
+                        print(p1, p2, ssr)
 
     def _pure_residuals(self, datasets, reg_info, parameter_constants):
         """Returns unweighted residuals.
@@ -714,6 +721,25 @@ class KineticModel:
             print(f'"{model_name}" is not a valid model.')
             print(", ".join(a for a in models), "are currently available.")
             sys.exit(1)
+
+    @staticmethod
+    def _divide_into_intervals(top, bottom, num):
+        """Given top and bottom, divides into num even intervals.
+        """
+        delta = (top - bottom)/(num - 1)
+        return [bottom + i*delta for i in range(num)]
+
+    def _bracket_param(self, param, low, high):
+        """Used to generated confidence contours. Returns the upper and
+        lower limits that should be used for a given value of param and
+        high and low CIs.
+        """
+        delta_high = high - param
+        delta_low = param - low
+        delta = 2*max(delta_high, delta_low)
+
+        return (max(self.bounds[0], param - delta),
+                min(self.bounds[1], param + delta))
 
 
 class IndirectKineticModel(KineticModel):

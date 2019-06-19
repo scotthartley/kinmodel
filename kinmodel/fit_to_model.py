@@ -380,6 +380,7 @@ def generate_cc_plot(pair, num_points, reg_info, output_filename):
     xlist = data[:, 0]
     ylist = data[:, 1]
     zlist = data[:, 2]
+    # Plotted data is actually the normalized inverse of the ssr.
     zlist_inv = reg_info['ssr']/zlist
     X = [xlist[n] for n in range(0, len(xlist), num_points)]
     Y = ylist[:num_points]

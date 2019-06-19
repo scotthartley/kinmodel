@@ -396,8 +396,9 @@ class KineticModel:
 
             if cc_ints:
                 reg_info['conf_contours'] = self.confidence_contours(
-                        reg_info, datasets, num_datasets, cc_ints, cc_mult,
-                        monitor, boot_nodes, cc_include_cs)
+                        reg_info, datasets, num_datasets, cc_ints,
+                        cc_mult=cc_mult, monitor=monitor,
+                        nodes=boot_nodes, include_cs=cc_include_cs)
         return reg_info
 
     def confidence_contours(self, reg_info, datasets, num_datasets,
@@ -406,7 +407,7 @@ class KineticModel:
         """Generates confidence contour data around each pair of fit
         parameters.
 
-        Returns a list of the two indices followed by the data as a list
+        Returns a tuple of the two indices followed by the data as a list
         of tuples (p1, p2, ssr).
         """
 
@@ -448,7 +449,7 @@ class KineticModel:
             all_params_top = ks_top + cs_top
             total_num_params = (self.num_var_ks
                                 + self.num_var_concs0*num_datasets)
-        else:
+        else:  # Only ks are included.
             all_parameter_names = self.k_var_names
             all_params_bot = ks_bot
             all_params_top = ks_top

@@ -69,12 +69,19 @@ def fit_kinetics():
         action='store_true')
     parser.add_argument(
         "-bn", "--bootstrap_nodes",
-        help=(""),
+        help=("Number of nodes to be used in parallel processing "
+              "(default=all)"),
         type=int, default=None)
     parser.add_argument(
         "-cci", "--confidence_contour_intervals",
-        help=(""),
+        help=("Number of intervals to be used in generating confidence "
+              "contour plots for pairs of parameters (default=None)"),
         type=int, default=None)
+    parser.add_argument(
+        "-ccm", "--confidence_contour_multiplier",
+        help=("Number of CIs to use around parameters in confidence contour "
+              "plots (default=5)"),
+        type=int, default=5)
     parser.add_argument(
         "-so", "--summary_output",
         help="Excludes conc vs time data from text output",
@@ -163,6 +170,7 @@ def fit_kinetics():
             bootstrap_CI=args.confidence_interval,
             bootstrap_force1st=args.bootstrap_force1st,
             confidence_contour_intervals=args.confidence_contour_intervals,
+            confidence_contour_multiplier=args.confidence_contour_multiplier,
             more_stats=args.more_stats,
             common_y=args.common_y,
             plot_no_params=args.no_parameters,

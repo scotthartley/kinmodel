@@ -240,7 +240,7 @@ class KineticModel:
                      conc0_const=None, N_boot=0, monitor=False,
                      boot_CI=95, boot_points=1000, boot_t_exp=1.1,
                      boot_force1st=False, boot_nodes=None,
-                     cc_ints=10):
+                     cc_ints=10, cc_mult=3.0):
         """Performs a fit to a set of datasets containing time and
         concentration data.
 
@@ -253,7 +253,9 @@ class KineticModel:
             if len(ks_guesses) == self.num_var_ks:
                 parameter_guesses += ks_guesses
             else:
-                raise(RuntimeError("Invalid number of k's specified"))
+                raise(RuntimeError(f"Invalid number of k's specified "
+                                   f"({len(ks_guesses)} expected "
+                                   f"{self.num_var_ks})"))
         else:
             parameter_guesses += self.ks_guesses
         if conc0_guesses:
@@ -394,12 +396,13 @@ class KineticModel:
 
             if cc_ints:
                 reg_info['conf_contours'] = self.confidence_contours(
-                        reg_info, datasets, num_datasets, cc_ints,
+                        reg_info, datasets, num_datasets, cc_ints, cc_mult,
                         monitor, boot_nodes)
         return reg_info
 
     def confidence_contours(self, reg_info, datasets, num_datasets,
-                            num_intervals, monitor, nodes):
+                            num_intervals, cc_mult=2.0, monitor=False,
+                            nodes=None):
         """Generates confidence contour data around each pair of fit
         parameters.
 
@@ -408,6 +411,8 @@ class KineticModel:
         """
 
         def _results(inp):
+            """Reformats _residual_fix for parallel processing.
+            """
             (p1, p2), p1_ind, p2_ind, var_params, var_params_ind, lock, c = inp
             if monitor:
                 with lock:
@@ -430,17 +435,14 @@ class KineticModel:
         all_parameter_names = self.k_var_names + all_conc0_names
 
         ks_bot = list(reg_info['boot_param_CIs'][0][0][0])
-        # Flattens list.
-        cs_bot = ([i for s in
-                  ([list(reg_info['boot_param_CIs'][d][1][0])
-                    for d in range(num_datasets)])
-                  for i in s])
+        # Flattens list of lists of cs.
+        cs_bot = list(itertools.chain.from_iterable([list(
+                reg_info['boot_param_CIs'][d][1][0])
+                for d in range(num_datasets)]))
         ks_top = list(reg_info['boot_param_CIs'][0][0][1])
-        # Flattens list.
-        cs_top = ([i for s in
-                  ([list(reg_info['boot_param_CIs'][d][1][1])
-                    for d in range(num_datasets)])
-                  for i in s])
+        cs_top = list(itertools.chain.from_iterable([list(
+                reg_info['boot_param_CIs'][d][1][1])
+                for d in range(num_datasets)]))
         all_params_bot = ks_bot + cs_bot
         all_params_top = ks_top + cs_top
         total_num_params = (self.num_var_ks
@@ -451,11 +453,13 @@ class KineticModel:
                 p1_low, p1_high = self._bracket_param(
                         reg_info['all_params'][p1_ind],
                         all_params_bot[p1_ind],
-                        all_params_top[p1_ind])
+                        all_params_top[p1_ind],
+                        cc_mult=cc_mult)
                 p2_low, p2_high = self._bracket_param(
                         reg_info['all_params'][p2_ind],
                         all_params_bot[p2_ind],
-                        all_params_top[p2_ind])
+                        all_params_top[p2_ind],
+                        cc_mult=cc_mult)
                 p1_vals = self._divide_into_intervals(
                         p1_high, p1_low, num_intervals)
                 p2_vals = self._divide_into_intervals(
@@ -763,14 +767,14 @@ class KineticModel:
         delta = (top - bottom)/(num - 1)
         return [bottom + i*delta for i in range(num)]
 
-    def _bracket_param(self, param, low, high):
+    def _bracket_param(self, param, low, high, cc_mult=2):
         """Used to generated confidence contours. Returns the upper and
         lower limits that should be used for a given value of param and
         high and low CIs.
         """
         delta_high = high - param
         delta_low = param - low
-        delta = 2*max(delta_high, delta_low)
+        delta = cc_mult*max(delta_high, delta_low)
 
         return (max(self.bounds[0], param - delta),
                 min(self.bounds[1], param + delta))

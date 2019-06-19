@@ -19,7 +19,8 @@ FIGURE_SIZE_2 = (3.3, 5.2)
 YLABEL = "C"
 XLABEL = "t"
 PARAM_LOC = [0.65, 0.1]
-CONTOUR_LEVELS = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+CONTOUR_LEVELS = [0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5,
+                  0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.05]
 
 PLT_PARAMS = {'font.size': 8,
               'font.family': 'sans-serif',
@@ -28,7 +29,7 @@ PLT_PARAMS = {'font.size': 8,
               'axes.linewidth': 0.75,
               'legend.frameon': False,
               'legend.fontsize': 6,
-              'image.cmap': 'plasma'}
+              'image.cmap': 'RdGy_r'}  # "plasma" also nice
 
 # Prevent line breaking and format numbers from np
 np.set_printoptions(linewidth=np.nan)
@@ -135,8 +136,8 @@ def prepare_text(
 
     text += (f"Total points (dof): {reg_info['total_points']} "
              f"({reg_info['dof']})\n")
-    text += f"Sum square residuals (weighted): {reg_info['ssr']:.2e}\n"
-    text += f"Sum square residuals (unweighted): {reg_info['pure_ssr']:.2e}\n"
+    text += f"Sum square residuals (weighted): {reg_info['ssr']:.4e}\n"
+    text += f"Sum square residuals (unweighted): {reg_info['pure_ssr']:.4e}\n"
     text += f"RMSD (unweighted): {reg_info['pure_rmsd']:.2e}\n"
     text += "\n"
 
@@ -361,6 +362,8 @@ def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
 
 
 def prepare_conf_contours(pair):
+    """Generates the output text for confidence contours.
+    """
     text = f"{pair[0][0]} {pair[0][1]} ssr\n"
     for result in pair[1]:
         text += " ".join(str(t) for t in result)
@@ -368,17 +371,20 @@ def prepare_conf_contours(pair):
     return text
 
 
-def generate_cc_plot(pair, num_points, output_filename):
+def generate_cc_plot(pair, num_points, reg_info, output_filename):
+    """Generates contour plots for confidence contours.
+    """
     rcParams.update(PLT_PARAMS)
     plt.figure(figsize=FIGURE_SIZE_1)
     data = np.array(pair[1])
     xlist = data[:, 0]
     ylist = data[:, 1]
     zlist = data[:, 2]
-    zlist_inv = np.min(zlist)/zlist
+    zlist_inv = reg_info['ssr']/zlist
     X = [xlist[n] for n in range(0, len(xlist), num_points)]
     Y = ylist[:num_points]
     Z = np.reshape(zlist_inv, (num_points, num_points)).T
+    cp = plt.contour(X, Y, Z, CONTOUR_LEVELS, colors='black')
     cpf = plt.contourf(X, Y, Z, CONTOUR_LEVELS)
     plt.colorbar(cpf)
     plt.xlabel(pair[0][0])
@@ -407,6 +413,7 @@ def fit_and_output(
             bootstrap_force1st=False,
             bootstrap_nodes=None,
             confidence_contour_intervals=None,
+            confidence_contour_multiplier=3.0,
             more_stats=False,
             common_y=True,
             plot_no_params=False,
@@ -427,7 +434,8 @@ def fit_and_output(
             boot_t_exp=text_time_extension_factor,
             boot_force1st=bootstrap_force1st,
             boot_nodes=bootstrap_nodes,
-            cc_ints=confidence_contour_intervals)
+            cc_ints=confidence_contour_intervals,
+            cc_mult=confidence_contour_multiplier)
 
     file_suffix = ""
     if bootstrap_force1st:
@@ -487,4 +495,4 @@ def fit_and_output(
 
             cc_plot_filename = cc_filename + ".pdf"
             generate_cc_plot(param_pair, confidence_contour_intervals,
-                             cc_plot_filename)
+                             reg_info, cc_plot_filename)

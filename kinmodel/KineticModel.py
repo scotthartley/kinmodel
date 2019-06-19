@@ -240,7 +240,7 @@ class KineticModel:
                      conc0_const=None, N_boot=0, monitor=False,
                      boot_CI=95, boot_points=1000, boot_t_exp=1.1,
                      boot_force1st=False, boot_nodes=None,
-                     cc_ints=10, cc_mult=3.0):
+                     cc_ints=10, cc_mult=3.0, cc_include_cs=False):
         """Performs a fit to a set of datasets containing time and
         concentration data.
 
@@ -397,12 +397,12 @@ class KineticModel:
             if cc_ints:
                 reg_info['conf_contours'] = self.confidence_contours(
                         reg_info, datasets, num_datasets, cc_ints, cc_mult,
-                        monitor, boot_nodes)
+                        monitor, boot_nodes, cc_include_cs)
         return reg_info
 
     def confidence_contours(self, reg_info, datasets, num_datasets,
                             num_intervals, cc_mult=2.0, monitor=False,
-                            nodes=None):
+                            nodes=None, include_cs=False):
         """Generates confidence contour data around each pair of fit
         parameters.
 
@@ -430,23 +430,30 @@ class KineticModel:
             ssr = cc_results.cost * 2
             return p1, p2, ssr
 
-        all_conc0_names = ([f"{n}({i+1})" for i in range(num_datasets)
-                            for n in self.conc0_var_names])
-        all_parameter_names = self.k_var_names + all_conc0_names
-
         ks_bot = list(reg_info['boot_param_CIs'][0][0][0])
-        # Flattens list of lists of cs.
-        cs_bot = list(itertools.chain.from_iterable([list(
-                reg_info['boot_param_CIs'][d][1][0])
-                for d in range(num_datasets)]))
         ks_top = list(reg_info['boot_param_CIs'][0][0][1])
-        cs_top = list(itertools.chain.from_iterable([list(
-                reg_info['boot_param_CIs'][d][1][1])
-                for d in range(num_datasets)]))
-        all_params_bot = ks_bot + cs_bot
-        all_params_top = ks_top + cs_top
-        total_num_params = (self.num_var_ks
-                            + self.num_var_concs0*num_datasets)
+        if include_cs:
+            all_conc0_names = ([f"{n}({i+1})" for i in range(num_datasets)
+                                for n in self.conc0_var_names])
+            all_parameter_names = self.k_var_names + all_conc0_names
+
+            # Flattens list of lists of cs.
+            cs_bot = list(itertools.chain.from_iterable([list(
+                    reg_info['boot_param_CIs'][d][1][0])
+                    for d in range(num_datasets)]))
+            cs_top = list(itertools.chain.from_iterable([list(
+                    reg_info['boot_param_CIs'][d][1][1])
+                    for d in range(num_datasets)]))
+            all_params_bot = ks_bot + cs_bot
+            all_params_top = ks_top + cs_top
+            total_num_params = (self.num_var_ks
+                                + self.num_var_concs0*num_datasets)
+        else:
+            all_parameter_names = self.k_var_names
+            all_params_bot = ks_bot
+            all_params_top = ks_top
+            total_num_params = self.num_var_ks
+
         results = []
         for p1_ind in range(total_num_params-1):
             for p2_ind in range(p1_ind+1, total_num_params):
@@ -466,7 +473,8 @@ class KineticModel:
                         p2_high, p2_low, num_intervals)
 
                 var_params = list(reg_info['all_params'])
-                var_params_ind = [x for x in range(total_num_params)]
+                var_params_ind = [x for x in range(len(
+                        reg_info['all_params']))]
                 for r in sorted([p1_ind, p2_ind], reverse=True):
                     del var_params[r]
                     del var_params_ind[r]

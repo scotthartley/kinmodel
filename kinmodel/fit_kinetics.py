@@ -83,6 +83,10 @@ def fit_kinetics():
               "plots (default=5)"),
         type=int, default=5)
     parser.add_argument(
+        "-cccs", "--confidence_contour_concs",
+        help=("Include fit concentrations in confidence contours"),
+        action='store_true')
+    parser.add_argument(
         "-so", "--summary_output",
         help="Excludes conc vs time data from text output",
         action='store_true')
@@ -171,6 +175,7 @@ def fit_kinetics():
             bootstrap_force1st=args.bootstrap_force1st,
             confidence_contour_intervals=args.confidence_contour_intervals,
             confidence_contour_multiplier=args.confidence_contour_multiplier,
+            confidence_contour_cs=args.confidence_contour_concs,
             more_stats=args.more_stats,
             common_y=args.common_y,
             plot_no_params=args.no_parameters,

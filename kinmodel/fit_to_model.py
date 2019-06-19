@@ -414,6 +414,7 @@ def fit_and_output(
             bootstrap_nodes=None,
             confidence_contour_intervals=None,
             confidence_contour_multiplier=3.0,
+            confidence_contour_cs=False,
             more_stats=False,
             common_y=True,
             plot_no_params=False,
@@ -426,16 +427,21 @@ def fit_and_output(
     datasets = Dataset.read_raw_data(model, data_filename)
 
     reg_info = model.fit_to_model(
-            datasets, ks_guesses=k_guesses,
-            conc0_guesses=conc_guesses, ks_const=fixed_ks,
-            conc0_const=fixed_concs, monitor=monitor,
-            N_boot=bootstrap_iterations, boot_CI=bootstrap_CI,
+            datasets,
+            ks_guesses=k_guesses,
+            conc0_guesses=conc_guesses,
+            ks_const=fixed_ks,
+            conc0_const=fixed_concs,
+            monitor=monitor,
+            N_boot=bootstrap_iterations,
+            boot_CI=bootstrap_CI,
             boot_points=text_output_points,
             boot_t_exp=text_time_extension_factor,
             boot_force1st=bootstrap_force1st,
             boot_nodes=bootstrap_nodes,
             cc_ints=confidence_contour_intervals,
-            cc_mult=confidence_contour_multiplier)
+            cc_mult=confidence_contour_multiplier,
+            cc_include_cs=confidence_contour_cs)
 
     file_suffix = ""
     if bootstrap_force1st:

@@ -335,8 +335,8 @@ def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
         if common_y:
             _, y_buffer = plt.margins()
             ymax = max(
-                    max(reg_info['max_exp_concs'][n] for n in model.top_plot),
-                    max(reg_info['max_pred_concs'][n] for n in model.top_plot)
+                    max(reg_info['max_exp_concs'][n] for n in model.bottom_plot),
+                    max(reg_info['max_pred_concs'][n] for n in model.bottom_plot)
                     )*(1 + y_buffer)
             plt.ylim(ymin=0, ymax=ymax)
         else:

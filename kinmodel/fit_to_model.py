@@ -21,6 +21,8 @@ XLABEL = "t"
 PARAM_LOC = [0.65, 0.1]
 CONTOUR_LEVELS = [0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5,
                   0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.05]
+CONTOUR_TICKS = [0, 0.25, 0.5, 0.75, 1.0]
+TICK_ALIGN_THRESHOLD = 10
 
 PLT_PARAMS = {'font.size': 8,
               'font.family': 'sans-serif',
@@ -29,7 +31,10 @@ PLT_PARAMS = {'font.size': 8,
               'axes.linewidth': 0.75,
               'legend.frameon': False,
               'legend.fontsize': 6,
-              'image.cmap': 'RdGy_r'}  # "plasma" also nice
+              'image.cmap': 'RdGy_r',  # "plasma" also nice
+              'image.origin': 'lower',
+              'image.interpolation': 'nearest',
+              }
 
 # Prevent line breaking and format numbers from np
 np.set_printoptions(linewidth=np.nan)
@@ -371,11 +376,10 @@ def prepare_conf_contours(pair):
     return text
 
 
-def generate_cc_plot(pair, num_points, reg_info, output_filename):
+def generate_cc_plot(pair, num_points, reg_info, output_base_filename):
     """Generates contour plots for confidence contours.
     """
     rcParams.update(PLT_PARAMS)
-    plt.figure(figsize=FIGURE_SIZE_1)
     data = np.array(pair[1])
     xlist = data[:, 0]
     ylist = data[:, 1]
@@ -385,13 +389,42 @@ def generate_cc_plot(pair, num_points, reg_info, output_filename):
     X = [xlist[n] for n in range(0, len(xlist), num_points)]
     Y = ylist[:num_points]
     Z = np.reshape(zlist_inv, (num_points, num_points)).T
-    cp = plt.contour(X, Y, Z, CONTOUR_LEVELS, colors='black')
+
+    # Generate contour plot
+    plt.figure(figsize=FIGURE_SIZE_1)
+    # cp = plt.contour(X, Y, Z, CONTOUR_LEVELS, colors='black')
     cpf = plt.contourf(X, Y, Z, CONTOUR_LEVELS)
-    plt.colorbar(cpf)
+    plt.colorbar(cpf, ticks=CONTOUR_TICKS)
     plt.xlabel(pair[0][0])
     plt.ylabel(pair[0][1])
     plt.tight_layout()
-    plt.savefig(output_filename)
+    plt.savefig(output_base_filename + "_c.pdf")
+    plt.close()
+
+    # Generate heatmap
+    plt.figure(figsize=FIGURE_SIZE_1)
+    # hm = plt.imshow(Z, extent=[X[0], X[-1], Y[0], Y[-1]], aspect='auto',
+    #                 vmax=CONTOUR_LEVELS[-1], vmin=CONTOUR_LEVELS[0])
+    hm = plt.imshow(Z, aspect='auto',
+                    vmax=CONTOUR_LEVELS[-1], vmin=CONTOUR_LEVELS[0])
+    ax = plt.gca()
+    ax.set_xticks([0, len(X)-1])
+    ax.set_xticklabels([f"{X[0]:.1e}", f"{X[-1]:.1e}"])
+    ax.set_yticks([0, len(Y)-1])
+    ax.set_yticklabels([f"{Y[0]:.1e}", f"{Y[-1]:.1e}"])
+    plt.colorbar(hm, ticks=CONTOUR_TICKS)
+    if num_points > TICK_ALIGN_THRESHOLD:
+        plt.setp(ax.get_yticklabels()[0], rotation=90, ha="left", rotation_mode="anchor")
+        plt.setp(ax.get_yticklabels()[-1], rotation=90, ha="right", rotation_mode="anchor")
+        plt.setp(ax.get_xticklabels()[0], ha="left", rotation_mode="anchor")
+        plt.setp(ax.get_xticklabels()[-1], ha="right", rotation_mode="anchor")
+    else:
+        plt.setp(ax.get_yticklabels()[0], rotation=90, ha="center", rotation_mode="anchor")
+        plt.setp(ax.get_yticklabels()[-1], rotation=90, ha="center", rotation_mode="anchor")
+    plt.xlabel(pair[0][0])
+    plt.ylabel(pair[0][1])
+    plt.tight_layout()
+    plt.savefig(output_base_filename + '_hm.pdf')
     plt.close()
 
 
@@ -500,6 +533,5 @@ def fit_and_output(
             with open(cc_text_filename, 'w', encoding='utf-8') as write_file:
                 print(cc_output_text, file=write_file)
 
-            cc_plot_filename = cc_filename + ".pdf"
             generate_cc_plot(param_pair, confidence_contour_intervals,
-                             reg_info, cc_plot_filename)
+                             reg_info, cc_filename)

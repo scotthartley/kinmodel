@@ -410,7 +410,6 @@ class KineticModel:
                 boot_CI_results = p.map(
                         _sim_boot, [(d, lock, counter) for d in
                                     list(range(num_datasets))])
-            boot_CI_results.sort(key=lambda x: x[0])
             reg_info['boot_CI'] = boot_CI
             reg_info['boot_param_CIs'] = []
             reg_info['boot_plot_CIs'] = []

@@ -5,6 +5,7 @@ given kinetic model and output the results.
 import platform
 import numpy as np
 import scipy
+import pickle
 from matplotlib import pyplot as plt, rcParams
 from . import _version
 from .Dataset import Dataset
@@ -482,6 +483,9 @@ def fit_and_output(
         file_suffix += "_ff"
 
     base_filename = f"{data_filename}_{model.name}{file_suffix}"
+
+    with open(base_filename + "_reg_info.pickle", 'wb') as file:
+        pickle.dump(reg_info, file)
 
     for n in range(reg_info['num_datasets']):
         output_text = prepare_text(

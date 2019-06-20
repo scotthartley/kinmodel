@@ -245,6 +245,21 @@ class KineticModel:
         concentration data.
 
         """
+        def _sim_boot(inp):
+            """Wrapper function to parallelize bootstrap simulations.
+            """
+            d, lock, cnt = inp
+            if monitor:
+                with lock:
+                    cnt.value += 1
+                    print(f"Bootstrapping simulation dataset {cnt.value} of "
+                          f"{num_datasets}")
+            param_CIs = self.bootstrap_param_CIs(reg_info, d, boot_CI)
+            boot_CIs, boot_calc_CIs, boot_ts = self.bootstrap_plot_CIs(
+                    reg_info, d, boot_CI, boot_points, boot_t_exp,
+                    monitor=False)
+            return d, param_CIs, boot_CIs, boot_calc_CIs, boot_ts
+
         num_datasets = len(datasets)
         total_points = sum(d.total_data_points for d in datasets)
 
@@ -377,22 +392,35 @@ class KineticModel:
                     self.bootstrap(
                             all_boot_datasets, results['x'],
                             parameter_constants, monitor, nodes=boot_nodes))
+            # Old code that runs one dataset at a time.
+            # for d in range(num_datasets):
+            #     if monitor:
+            #         print(f"Simulating bootstrap dataset {d+1} of "
+            #               f"{num_datasets}")
+            #     reg_info['boot_param_CIs'].append(self.bootstrap_param_CIs(
+            #             reg_info, d, boot_CI))
+            #     boot_CIs, boot_calc_CIs, boot_ts = self.bootstrap_plot_CIs(
+            #             reg_info, d, boot_CI, boot_points, boot_t_exp, monitor)
+            #     reg_info['boot_plot_CIs'].append(boot_CIs)
+            #     reg_info['boot_calc_CIs'].append(boot_calc_CIs)
+            #     reg_info['boot_plot_ts'].append(boot_ts)
+            with ProcessPool(nodes=boot_nodes) as p:
+                lock = multiprocess.Manager().Lock()
+                counter = multiprocess.Manager().Value('i', 0)
+                boot_CI_results = p.map(
+                        _sim_boot, [(d, lock, counter) for d in
+                                    list(range(num_datasets))])
+            boot_CI_results.sort(key=lambda x: x[0])
             reg_info['boot_CI'] = boot_CI
             reg_info['boot_param_CIs'] = []
             reg_info['boot_plot_CIs'] = []
             reg_info['boot_plot_ts'] = []
             reg_info['boot_calc_CIs'] = []
-            for d in range(num_datasets):
-                if monitor:
-                    print(f"Simulating bootstrap dataset {d+1} of "
-                          f"{num_datasets}")
-                reg_info['boot_param_CIs'].append(self.bootstrap_param_CIs(
-                        reg_info, d, boot_CI))
-                boot_CIs, boot_calc_CIs, boot_ts = self.bootstrap_plot_CIs(
-                        reg_info, d, boot_CI, boot_points, boot_t_exp, monitor)
-                reg_info['boot_plot_CIs'].append(boot_CIs)
-                reg_info['boot_calc_CIs'].append(boot_calc_CIs)
-                reg_info['boot_plot_ts'].append(boot_ts)
+            for b in boot_CI_results:
+                reg_info['boot_param_CIs'].append(b[1])
+                reg_info['boot_plot_CIs'].append(b[2])
+                reg_info['boot_calc_CIs'].append(b[3])
+                reg_info['boot_plot_ts'].append(b[4])
 
             if cc_ints:
                 reg_info['conf_contours'] = self.confidence_contours(

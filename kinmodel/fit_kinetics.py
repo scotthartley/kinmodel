@@ -140,6 +140,11 @@ def fit_kinetics():
         help=("For indirect fitting, controls whether the direct model is "
               "simulated"),
         action='store_true')
+    parser.add_argument(
+        "-l", "--load_reg_info",
+        help=("Load reg_info from previous optimization; original model must "
+              "be specified"),
+        action='store_true')
     args = parser.parse_args()
 
     model = kinmodel.KineticModel.get_model(args.model_name, args.new_model)
@@ -180,4 +185,6 @@ def fit_kinetics():
             common_y=args.common_y,
             plot_no_params=args.no_parameters,
             units=args.units,
-            simulate=not args.no_simulate_direct)
+            simulate=not args.no_simulate_direct,
+            load_reg_info=args.load_reg_info,
+            )

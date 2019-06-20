@@ -37,6 +37,8 @@ PLT_PARAMS = {'font.size': 8,
               'image.interpolation': 'nearest',
               }
 
+PICKLE_SUFFIX = "_reg_info.pickle"
+
 # Prevent line breaking and format numbers from np
 np.set_printoptions(linewidth=np.nan)
 np.set_printoptions(precision=2, suppress=True)
@@ -455,37 +457,44 @@ def fit_and_output(
             plot_no_params=False,
             units=None,
             simulate=True,
-            calcs=True):
+            calcs=True,
+            load_reg_info=False):
     """Carry out the fit of the model and output the data.
 
     """
-    datasets = Dataset.read_raw_data(model, data_filename)
 
-    reg_info = model.fit_to_model(
-            datasets,
-            ks_guesses=k_guesses,
-            conc0_guesses=conc_guesses,
-            ks_const=fixed_ks,
-            conc0_const=fixed_concs,
-            monitor=monitor,
-            N_boot=bootstrap_iterations,
-            boot_CI=bootstrap_CI,
-            boot_points=text_output_points,
-            boot_t_exp=text_time_extension_factor,
-            boot_force1st=bootstrap_force1st,
-            boot_nodes=bootstrap_nodes,
-            cc_ints=confidence_contour_intervals,
-            cc_mult=confidence_contour_multiplier,
-            cc_include_cs=confidence_contour_cs)
+    if not load_reg_info:
+        datasets = Dataset.read_raw_data(model, data_filename)
+        reg_info = model.fit_to_model(
+                datasets,
+                ks_guesses=k_guesses,
+                conc0_guesses=conc_guesses,
+                ks_const=fixed_ks,
+                conc0_const=fixed_concs,
+                monitor=monitor,
+                N_boot=bootstrap_iterations,
+                boot_CI=bootstrap_CI,
+                boot_points=text_output_points,
+                boot_t_exp=text_time_extension_factor,
+                boot_force1st=bootstrap_force1st,
+                boot_nodes=bootstrap_nodes,
+                cc_ints=confidence_contour_intervals,
+                cc_mult=confidence_contour_multiplier,
+                cc_include_cs=confidence_contour_cs)
 
-    file_suffix = ""
-    if bootstrap_force1st:
-        file_suffix += "_ff"
+        file_suffix = ""
+        if bootstrap_force1st:
+            file_suffix += "_ff"
 
-    base_filename = f"{data_filename}_{model.name}{file_suffix}"
+        base_filename = f"{data_filename}_{model.name}{file_suffix}"
 
-    with open(base_filename + "_reg_info.pickle", 'wb') as file:
-        pickle.dump(reg_info, file)
+        with open(base_filename + PICKLE_SUFFIX, 'wb') as file:
+            pickle.dump(reg_info, file)
+    else:
+        with open(data_filename, 'rb') as file:
+            reg_info = pickle.load(file)
+
+        base_filename = f"{data_filename}"
 
     for n in range(reg_info['num_datasets']):
         output_text = prepare_text(

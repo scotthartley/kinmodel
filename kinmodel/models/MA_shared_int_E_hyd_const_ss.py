@@ -1,5 +1,6 @@
 import textwrap
 from ..KineticModel import KineticModel
+import numpy as np
 
 
 def equations(concs, t, *ks):

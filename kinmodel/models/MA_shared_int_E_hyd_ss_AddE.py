@@ -49,11 +49,23 @@ model = KineticModel(
     calcs=[
             lambda cs, ks, ints: max(cs[:, 3]),
             lambda cs, ks, ints: cs[:, 3][-1],
+            lambda cs, ks, ints: (
+                    (cs[:, 3][-1] - cs[:, 3][round(len(cs[:, 3])*0.75)])
+                    / cs[:, 3][-1]),
+            lambda cs, ks, ints: (
+                ((ks[0]*cs[:, 0][-1]**2*cs[:, 1][-1])/(cs[:, 0][-1]+ks[2]))
+                / (ks[0]*cs[:, 0][-1]*cs[:, 1][-1] + ks[3]*cs[:, 1][-1])),
+            lambda cs, ks, ints: (
+                ((ks[0]*cs[:, 0][round(len(cs[:, 0])*0.75)]**2*cs[:, 1][round(len(cs[:, 0])*0.75)])/(cs[:, 0][round(len(cs[:, 0])*0.75)]+ks[2]))
+                / (ks[0]*cs[:, 0][round(len(cs[:, 0])*0.75)]*cs[:, 1][round(len(cs[:, 0])*0.75)] + ks[3]*cs[:, 1][round(len(cs[:, 3])*0.75)])),
             ],
     calcs_desc=[
             "Maximum An",
             "Final An",
+            "(An_final-An_75%)/An_final",
+            "Final efficiency (An produced/E consumed)",
+            "Efficiency at 75% t"
             ],
-    lifetime_conc=[3],
-    rectime_conc=[0],
+    lifetime_conc=[],
+    rectime_conc=[],
     )

@@ -51,9 +51,9 @@ model = KineticModel(
             "k1*E*Ac",
             ],
     calcs=[
-            lambda cs, ks, ints: max(cs[:, 3]),
-            lambda cs, ks, ints: cs[:, 3][-1],
-            lambda cs, ks, ints: ints[1][1]/cs[:, 1][0],
+            lambda cs, ts, ks, ints: max(cs[:, 3]),
+            lambda cs, ts, ks, ints: cs[:, 3][-1],
+            lambda cs, ts, ks, ints: ints[1][1]/cs[:, 1][0],
             ],
     calcs_desc=[
             "Maximum An",

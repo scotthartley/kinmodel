@@ -228,8 +228,11 @@ class KineticModel:
             for i in range(self.num_calcs):
                 calc_results.append(
                         (self.calcs_desc[i],
-                         self.calcs[i](smooth_curves_out, np.append(ks, concs),
-                                       integrals)))
+                         self.calcs[i](
+                                smooth_curves_out,
+                                smooth_ts_out,
+                                np.append(ks, concs),
+                                integrals)))
         else:
             calc_results = None
 

@@ -35,8 +35,8 @@ model = KineticModel(
     int_eqn=[],
     int_eqn_desc=[],
     calcs=[
-            lambda cs, ks, ints: max(cs[:, 0]),
-            lambda cs, ks, ints: cs[:, 0][-1],],
+            lambda cs, ts, ks, ints: max(cs[:, 0]),
+            lambda cs, ts, ks, ints: cs[:, 0][-1],],
     calcs_desc=[
             "Maximum E",
             "Final E", ],

@@ -210,7 +210,7 @@ def prepare_text(
                                               "points do not line up!")
             boot_CI_data = reg_info['boot_plot_CIs'][ds_num]
             text += ("t " + " ".join(model.legend_names) + " "
-                     + " ".join(f"{n}CI− {n}CI+" for n in model.legend_names)
+                     + " ".join(f"{n}CI+ {n}CI−" for n in model.legend_names)
                      + "\n")
             for n in range(len(smooth_ts_out)):
                 best_fit_points = " ".join(

@@ -407,6 +407,7 @@ class KineticModel:
             #     reg_info['boot_plot_CIs'].append(boot_CIs)
             #     reg_info['boot_calc_CIs'].append(boot_calc_CIs)
             #     reg_info['boot_plot_ts'].append(boot_ts)
+            # breakpoint()
             with ProcessPool(nodes=boot_nodes) as p:
                 lock = multiprocess.Manager().Lock()
                 counter = multiprocess.Manager().Value('i', 0)
@@ -640,7 +641,7 @@ class KineticModel:
                       f"of {reg_info['boot_num']}", end="")
             _, boot_plot, _, boot_calcs = self.simulate(
                     reg_info['boot_fit_ks'][n],
-                    reg_info['boot_fit_concs'][dataset_n][n], num_points,
+                    list(reg_info['boot_fit_concs'][dataset_n][n]) + reg_info['fixed_concs'][dataset_n], num_points,
                     max_time, integrate=True, calcs=True)
             if (n+1) <= CI_num:
                 plot_topCI = np.append(plot_topCI, [boot_plot], axis=0)

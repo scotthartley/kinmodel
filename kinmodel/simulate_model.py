@@ -92,6 +92,7 @@ def prepare_text(model, ks, concs, time, num_points, full_output):
     text += "Simulation\n"
     text += "----------\n"
     text += f"Points in simulation: {num_points}\n"
+    text += f"Total time: {time}\n"
     text += "\n"
 
     if integrals:

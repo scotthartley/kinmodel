@@ -837,6 +837,8 @@ class IndirectKineticModel(KineticModel):
                  sort_order,
                  int_eqn=[],
                  int_eqn_desc=[],
+                 calcs=[],
+                 calcs_desc=[],
                  lifetime_conc=[],
                  lifetime_fracs=[1, 1/2.71828, 0.1, 0.01],
                  rectime_conc=[],
@@ -865,6 +867,8 @@ class IndirectKineticModel(KineticModel):
         self.sort_order = sort_order
         self.int_eqn = int_eqn
         self.int_eqn_desc = int_eqn_desc
+        self.calcs = calcs
+        self.calcs_desc = calcs_desc
         self.weight_func = self.parent_model.weight_func
         self.bounds = self.parent_model.bounds
         self.lifetime_conc = lifetime_conc

@@ -58,7 +58,7 @@ model = KineticModel(
     calcs_desc=[
             "Maximum An",
             "Final An",
-            "An yield from (∫k1*Ac^2*E)/(Ac+K)dt)/E0"
+            "An yield from (∫(k1*Ac^2*E)/(Ac+K)dt)/E0"
             ],
     lifetime_conc=[3],
     rectime_conc=[0],

@@ -499,6 +499,14 @@ def fit_and_output(
         with open(data_filename, 'rb') as file:
             reg_info = pickle.load(file)
 
+        if confidence_contour_intervals:
+            reg_info['conf_contours'] = model.confidence_contours(
+                    reg_info, reg_info['datasets'],
+                    reg_info['num_datasets'],
+                    confidence_contour_intervals,
+                    cc_mult=confidence_contour_multiplier, monitor=monitor,
+                    nodes=bootstrap_nodes, include_cs=confidence_contour_cs)
+
         base_filename = f"{data_filename}"
 
     for n in range(reg_info['num_datasets']):

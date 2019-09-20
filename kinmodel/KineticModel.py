@@ -311,6 +311,7 @@ class KineticModel:
                 args=(datasets, parameter_constants, monitor))
 
         reg_info = {}
+        reg_info['datasets'] = datasets
         reg_info['dataset_names'] = [d.name for d in datasets]
         reg_info['dataset_times'] = [d.times.tolist() for d in datasets]
         reg_info['dataset_concs'] = [d.concs.tolist() for d in datasets]

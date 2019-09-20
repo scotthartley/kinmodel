@@ -81,7 +81,7 @@ def fit_kinetics():
         "-ccm", "--confidence_contour_multiplier",
         help=("Number of CIs to use around parameters in confidence contour "
               "plots (default=5)"),
-        type=int, default=5)
+        type=float, default=5)
     parser.add_argument(
         "-cccs", "--confidence_contour_concs",
         help=("Include fit concentrations in confidence contours"),

@@ -82,7 +82,7 @@ def prepare_text(model, ks, concs, time, num_points, full_output):
     for n in range(model.num_var_concs0):
         text += (f"{model.conc0_var_names[n]:>{width}} = "
                  f"{all_concs[n]:+.5e}\n")
-    for n in range(model.num_var_concs0):
+    for n in range(model.num_const_concs0):
         text += (f"{model.conc0_const_names[n]:>{width}} = "
                  f"{all_concs[model.num_var_concs0+n]:+.5e}\n")
 
@@ -234,7 +234,7 @@ def generate_plot(model, ks, concs, time, num_points, output_filename,
         for n in range(model.num_var_concs0):
             pars_to_print += (f"{model.conc0_var_names[n]} = "
                               f"{all_concs[n]:+.2e}\n")
-        for n in range(model.num_var_concs0):
+        for n in range(model.num_const_concs0):
             pars_to_print += (f"{model.conc0_const_names[n]} = "
                               f"{all_concs[model.num_var_concs0+n]:+.2e}\n")
         plt.text(PARAM_LOC[0], PARAM_LOC[1], pars_to_print, transform=plt.gca().transAxes,

@@ -32,7 +32,7 @@ model = KineticModel(
              DA1 + E ---> I1        (k1)
                   I1 ---> DA1 + U   (kih)
                   I1 ---> C + U     (kiC)
-            I1 + DA1 ---> DA2       (kiL)
+            I1 + DA1 ---> DA2 + U   (kiL)
                  DA2 <--> DA1 + Ip1 (k2L, km2L)
                    C <--> Ip1       (k2C, km2C)
                  Ip1 ---> DA1       (k3)

@@ -8,25 +8,25 @@ def equations(concs, t, *ks):
 
     # Return the equations for concs
     return [
-        (2*DA3*k2L + k2L*DA2 - k1*DA1*E
-            - (DA1*(2*DA3*k2L + k2C*C + k2L*DA2))/(EM2 + K2 + DA1 + DA2)
-            + (K2*(2*DA3*k2L + k2C*C + k2L*DA2))/(EM2 + K2 + DA1 + DA2)
+        (DA3*k2L + k2L*DA2 - k1*DA1*E
+            - (DA1*(DA3*k2L + k2C*C + k2L*DA2))/(EM2 + K2 + DA1 + DA2)
+            + (K2*(DA3*k2L + k2C*C + k2L*DA2))/(EM2 + K2 + DA1 + DA2)
             - (k1*DA1**2*E)/(EM1 + K1 + DA1 + DA2)
-            - (2*DA3*k2L*DA1)/(K2 + DA1) + (K1*k1*DA1*E)/(EM1 + K1 + DA1 + DA2)
+            - (DA3*k2L*DA1)/(K2 + DA1) + (K1*k1*DA1*E)/(EM1 + K1 + DA1 + DA2)
             - (k1*DA1*DA2*E)/(K1 + DA1)),
         - k1*DA1*E - k1*DA2*E,
         + k1*DA1*E + k1*DA2*E,
-        (2*DA3*k2L - k2L*DA2 - k1*DA2*E
-            + (DA1*(2*DA3*k2L + k2C*C + k2L*DA2))/(EM2 + K2 + DA1 + DA2)
-            - (DA2*(2*DA3*k2L + k2C*C + k2L*DA2))/(EM2 + K2 + DA1 + DA2)
-            + (2*DA3*K2*k2L)/(K2 + DA1) + (k1*DA1**2*E)/(EM1 + K1 + DA1 + DA2)
+        (DA3*k2L - k2L*DA2 - k1*DA2*E
+            + (DA1*(DA3*k2L + k2C*C + k2L*DA2))/(EM2 + K2 + DA1 + DA2)
+            - (DA2*(DA3*k2L + k2C*C + k2L*DA2))/(EM2 + K2 + DA1 + DA2)
+            + (DA3*K2*k2L)/(K2 + DA1) + (k1*DA1**2*E)/(EM1 + K1 + DA1 + DA2)
             + (K1*k1*DA2*E)/(K1 + DA1)
             - (k1*DA1*DA2*E)/(EM1 + K1 + DA1 + DA2)),
-        ((DA2*(2*DA3*k2L + k2C*C + k2L*DA2))/(EM2 + K2 + DA1 + DA2) - 4*DA3*k2L
-            + (2*DA3*k2L*DA1)/(K2 + DA1)
+        ((DA2*(DA3*k2L + k2C*C + k2L*DA2))/(EM2 + K2 + DA1 + DA2) - 2*DA3*k2L
+            + (DA3*k2L*DA1)/(K2 + DA1)
             + (k1*DA1*DA2*E)/(EM1 + K1 + DA1 + DA2)
             + (k1*DA1*DA2*E)/(K1 + DA1)),
-        ((EM2*(2*DA3*k2L + k2C*C + k2L*DA2))/(EM2 + K2 + DA1 + DA2) - k2C*C
+        ((EM2*(DA3*k2L + k2C*C + k2L*DA2))/(EM2 + K2 + DA1 + DA2) - k2C*C
             + (EM1*k1*DA1*E)/(EM1 + K1 + DA1 + DA2)),
     ]
 
@@ -42,17 +42,17 @@ model = KineticModel(
              DA1 + E ---> I1         (k1)
                   I1 ---> DA1 + U    (kih)
                   I1 ---> C + U      (kiC)
-            I1 + DA1 ---> DA2        (kiL)
-            I1 + DA2 ---> DA3        (kiL)
+            I1 + DA1 ---> DA2 + U    (kiL)
+            I1 + DA2 ---> DA3 + U    (kiL)
                  DA2 <--> DA1 + Ip1  (k2L, km2L)
                    C <--> Ip1        (k2C, km2C)
-                 DA3 <--> DA2 Ip1    (2*k2L, km2L)
-                 DA3 <-->  Ip2 + DA1 (2*k2L, km2L)
+                 DA3 <--> DA2 + Ip1  (k2L, km2L)
+                 DA3 <--> Ip2 + DA1  (k2L, km2L)
                  Ip1 ---> DA1        (k3)
                  Ip2 ---> DA2        (k3)
              DA2 + E ---> I2         (k1)
                   I2 ---> DA2 + U    (kih)
-            I2 + DA1 ---> DA3        (kiL)
+            I2 + DA1 ---> DA3 + U    (kiL)
 
         Steady-state approximations with K1 = kih/kiL, EM1 = kiC/kiL,
         K2 = k3/km2L, and EM2 = km2C/km2L.

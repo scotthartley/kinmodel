@@ -51,10 +51,20 @@ class Dataset:
             all_concs = []
             curr_ds_times = []
             curr_ds_concs = []
+            first_data_line = True
             for line in datafile:
                 curline = line.replace("\n", "").split(",")
                 if _is_number(curline[0]):
                     # Line contains data
+                    if first_data_line:
+                        if float(curline[0]) != 0:
+                            # Append a t = 0 at the start.
+                            curr_ds_times.append(0)
+                            line_concs = []
+                            for n in range(model.num_data_concs):
+                                line_concs.append(np.nan)
+                            curr_ds_concs.append(line_concs)
+                        first_data_line = False
                     curr_ds_times.append(float(curline[0]))
                     line_concs = []
                     for n in range(model.num_data_concs):
@@ -81,6 +91,7 @@ class Dataset:
                         # This is the first dataset
                         datasets[-1].name = "".join(
                                 c for c in curline[0] if c in string.printable)
+                    first_data_line = True
             # Record times for last dataset
             all_times.append(curr_ds_times)
             all_concs.append(curr_ds_concs)

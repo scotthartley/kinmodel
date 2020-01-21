@@ -26,9 +26,9 @@ model = KineticModel(
         Orders: k1, K, k2; DA, E, U, An.\
         """),
     kin_sys=equations,
-    ks_guesses=[0.02, 200, 0.5],
+    ks_guesses=[0.02, 1, 0.5],
     ks_constant=[],
-    conc0_guesses=[100, 400],
+    conc0_guesses=[25, 100],
     conc0_constant=[0, 0],
     k_var_names=["k1", "K", "k2"],
     k_const_names=[],

@@ -639,7 +639,7 @@ class KineticModel:
                 print(f"Bootstrapping simulation {n+1} "
                       f"of {reg_info['boot_num']}", end="")
             _, boot_plot, _, boot_calcs = self.simulate(
-                    reg_info['boot_fit_ks'][n],
+                    list(reg_info['boot_fit_ks'][n]) + reg_info['fixed_ks'],
                     list(reg_info['boot_fit_concs'][dataset_n][n]) + reg_info['fixed_concs'][dataset_n], num_points,
                     max_time, integrate=True, calcs=True)
             if (n+1) <= CI_num:

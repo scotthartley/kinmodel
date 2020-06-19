@@ -72,8 +72,38 @@ model = KineticModel(
     bottom_plot=[0, 3, 4, 5],
     sort_order=[],
     int_eqn=[
+        lambda cs, ks: ((ks[6]*ks[4]*cs[4]) /
+                        (ks[4]+ks[3]+cs[0]+cs[3])),
+        lambda cs, ks: ((ks[5]*ks[4]*cs[5]) /
+                        (ks[4]+ks[3]+cs[0]+cs[3])),
+        lambda cs, ks: ((ks[6]*ks[4]*cs[3]) /
+                        (ks[4]+ks[3]+cs[0]+cs[3])),
+        lambda cs, ks: ks[5]*cs[5],
+        lambda cs, ks: ((ks[2]*ks[0]*cs[0]*cs[1]) /
+                        (ks[2]+ks[1]+cs[0]+cs[3])),
         ],
     int_eqn_desc=[
+        "(k2L*EM2*DA3)/(EM2+K2+DA1+DA2)",
+        "(k2C*EM2*C)/(EM2+K2+DA1+DA2)",
+        "(k2L*EM2*DA2)/(EM2+K2+DA1+DA2)",
+        "k2C*C",
+        "(EM1*k1*DA1*E)/(EM1+K1+DA1+DA2)"
+        ],
+    calcs=[
+        lambda cs, ts, ks, ints: ints[4][1],
+        lambda cs, ts, ks, ints: ints[4][1] / cs[:, 1][0],
+        lambda cs, ts, ks, ints: ints[3][1],
+        lambda cs, ts, ks, ints: ints[2][1],
+        lambda cs, ts, ks, ints: ints[0][1],
+        lambda cs, ts, ks, ints: ints[1][1],
+        ],
+    calcs_desc=[
+        "C produced directly from EDC ∫(EM1*k1*DA1*E)/(EM1+K1+DA1+DA2)dt",
+        "C yield directly from EDC ∫(EM1*k1*DA1*E)/(EM1+K1+DA1+DA2)dt/E0",
+        "Total C hydrolysis ∫(k2C*C)dt",
+        "C produced from DA2 exchange ∫(k2L*EM2*DA2)/(EM2+K2+DA1+DA2)dt",
+        "C produced from DA3 exchange ∫(k2L*EM2*DA3)/(EM2+K2+DA1+DA2)dt",
+        "C produced from C after decomp ∫(k2C*EM2*C)/(EM2+K2+DA1+DA2)dt",
         ],
     lifetime_conc=[3, 4, 5],
     rectime_conc=[0],

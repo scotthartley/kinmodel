@@ -19,10 +19,4 @@ model = IndirectKineticModel(
     top_plot=[1, 2],
     bottom_plot=[0, 3, 4],
     sort_order=[2, 3, 4, 0, 1],
-    int_eqn=[
-        ],
-    int_eqn_desc=[
-        ],
-    lifetime_conc=[],
-    rectime_conc=[],
     )

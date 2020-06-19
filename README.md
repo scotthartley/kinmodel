@@ -112,13 +112,7 @@ model = IndirectKineticModel(
     top_plot=[1, 2],
     bottom_plot=[0, 3, 4],
     sort_order=[2, 3, 4, 0, 1],
-    int_eqn=[
-        ],
-    int_eqn_desc=[
-        ],
-    lifetime_conc=[],
-    rectime_conc=[],
     )
 ```
 
-Here the parent_model_name defines the underlying mechanism. The conc_mapping function converts the concentrations of the species into the experimentally observed quantities. In the example, the "Diacid" concentration is the sum of the concentrations of species 0 and 4 in the DA_explicit_DA2 KineticModel.
+Here the parent_model_name defines the underlying mechanism. The conc_mapping function converts the concentrations of the species into the experimentally observed quantities. In the example, the "Diacid" concentration is the sum of the concentrations of species 0 and 4 in the DA_explicit_DA2 KineticModel. Integrals and calculations should not be specified in indirect models (they should be specified in the parent model).

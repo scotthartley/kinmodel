@@ -900,16 +900,16 @@ class IndirectKineticModel(KineticModel):
         self.top_plot = top_plot
         self.bottom_plot = bottom_plot
         self.sort_order = sort_order
-        self.int_eqn = int_eqn
-        self.int_eqn_desc = int_eqn_desc
-        self.calcs = calcs
-        self.calcs_desc = calcs_desc
+        self.int_eqn = self.parent_model.int_eqn
+        self.int_eqn_desc = self.parent_model.int_eqn_desc
+        self.calcs = self.parent_model.calcs
+        self.calcs_desc = self.parent_model.calcs_desc
         self.weight_func = self.parent_model.weight_func
         self.bounds = self.parent_model.bounds
-        self.lifetime_conc = lifetime_conc
-        self.lifetime_fracs = lifetime_fracs
-        self.rectime_conc = rectime_conc
-        self.rectime_fracs = rectime_fracs
+        self.lifetime_conc = self.parent_model.lifetime_conc
+        self.lifetime_fracs = self.parent_model.lifetime_fracs
+        self.rectime_conc = self.parent_model.rectime_conc
+        self.rectime_fracs = self.parent_model.rectime_fracs
 
     @property
     def num_data_concs(self):
@@ -921,3 +921,14 @@ class IndirectKineticModel(KineticModel):
                 mxstep=self.MAX_STEPS)
 
         return self.conc_mapping(parent_model_soln)
+
+    def simulate(self, ks, concs, num_points, max_time, integrate=False,
+                 calcs=False):
+        """Overriding the simulate function in this way allows calculations
+        from the parent model to be executed.
+        """
+        smooth_ts_out, smooth_curves_out, integrals, calc_results = (
+                self.parent_model.simulate(
+                        ks, concs, num_points, max_time, integrate, calcs))
+
+        return smooth_ts_out, self.conc_mapping(smooth_curves_out), integrals, calc_results

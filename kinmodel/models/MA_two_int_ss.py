@@ -48,6 +48,14 @@ model = KineticModel(
             "(k1*Ac^2*E)/(Ac+K1)",
             "k4*An",
             "(k4*Ac*An)/(Ac+K2)", ],
+    calcs=[
+        lambda cs, ts, ks, ints: ints[0][1]/cs[:, 1][0],
+        lambda cs, ts, ks, ints: (ints[1][1]-ints[2][1])/cs[:, 1][0],
+        ],
+    calcs_desc=[
+        "An yield from (∫(k1*Ac^2*E)/(Ac+K1)dt)/E0",
+        "An yield from (∫(k4*An)dt - ∫((k4*Ac*An)/(Ac+K2)dt))/E0",
+        ],
     lifetime_conc=[3],
     rectime_conc=[0],
     )

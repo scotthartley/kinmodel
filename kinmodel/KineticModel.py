@@ -80,6 +80,7 @@ class KineticModel:
                  top_plot,
                  bottom_plot,
                  sort_order,
+                 type="direct",
                  int_eqn=[],
                  int_eqn_desc=[],
                  calcs=[],
@@ -112,10 +113,10 @@ class KineticModel:
         self.top_plot = top_plot
         self.bottom_plot = bottom_plot
         self.sort_order = sort_order
-        self.int_eqn = int_eqn if int_eqn else []
+        self.int_eqn = [eval(i) for i in int_eqn] if int_eqn else []
         self.int_eqn_desc = int_eqn_desc if int_eqn_desc else []
-        self.calcs = [eval(c) for c in calcs]
-        self.calcs_desc = calcs_desc
+        self.calcs = [eval(c) for c in calcs] if calcs else []
+        self.calcs_desc = calcs_desc if calcs_desc else []
         self.weight_func = weight_func
         self.bounds = bounds
         self.lifetime_conc = lifetime_conc
@@ -242,7 +243,7 @@ class KineticModel:
                                 smooth_curves_out.transpose(),
                                 smooth_ts_out,
                                 np.append(ks, concs),
-                                integrals)))
+                                [i[1] for i in integrals])))
         else:
             calc_results = None
 
@@ -820,6 +821,13 @@ class KineticModel:
             new_model = KineticModel(**direct_models_params[m])
             all_models[new_model.name] = new_model
 
+        for m in indirect_models_params:
+            parent_model_name = indirect_models_params[m]['parent_model_name']
+            parent_model = all_models[parent_model_name]
+            new_model = IndirectKineticModel(
+                    parent_model=parent_model, **indirect_models_params[m])
+            all_models[new_model.name] = new_model
+
         try:
             return all_models[model_name]
         except KeyError:
@@ -891,13 +899,15 @@ class IndirectKineticModel(KineticModel):
 
     def __init__(self,
                  name,
-                 parent_model_name,
+                 parent_model,
                  description,
                  conc_mapping,
                  legend_names,
                  top_plot,
                  bottom_plot,
                  sort_order,
+                 parent_model_name=None,
+                 type="indirect",
                  int_eqn=[],
                  int_eqn_desc=[],
                  calcs=[],
@@ -908,8 +918,8 @@ class IndirectKineticModel(KineticModel):
                  rectime_fracs=[0.99],
                  ):
 
-        self.parent_model = KineticModel.get_model(parent_model_name)
-        self.conc_mapping = conc_mapping
+        self.parent_model = parent_model
+        self.conc_mapping = eval(conc_mapping)
 
         self.name = name
         self.kin_sys = self.parent_model.kin_sys

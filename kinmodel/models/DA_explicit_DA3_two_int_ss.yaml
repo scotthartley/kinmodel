@@ -51,85 +51,76 @@ eq_function: |
             ((EM2*(DA3*k2L + k2C*C + k2L*DA2))/(EM2 + K2 + DA1 + DA2) - k2C*C
                 + (EM1*k1*DA1*E)/(EM1 + K1 + DA1 + DA2)),
         ]
-k_var_names: 
-    - "k1"
-    - "K1"
-    - "EM1"
-    - "K2"
-    - "EM2"
-    - "k2C"
-    - "k2L"
-k_const_names:
-conc0_var_names:
-    - "[DA1]0"
-    - "[EDC]0"
-conc0_const_names:
-    - "[U]0"
-    - "[DA2]0"
-    - "[DA3]0"
-    - "[C]0"
-ks_guesses: 
-    - 1
-    - 40
-    - 50
-    - 45
-    - 100
-    - 1e-2
-    - 2e-2
-ks_constant:
-conc0_guesses: 
-    - 25
-    - 50
-conc0_constant: 
-    - 0
-    - 0
-    - 0
-    - 0
-legend_names:
-    - "DA1"
-    - "EDC"
-    - "Urea"
-    - "DA2"
-    - "DA3"
-    - "Cy"
-top_plot: 
-    - 1
-    - 2
-bottom_plot:
-    - 0
-    - 3
-    - 4
-    - 5
-sort_order:
-int_eqn:
-    - "lambda c, k: ((k[6]*k[4]*c[4]) / (k[4]+k[3]+c[0]+c[3]))"
-    - "lambda c, k: ((k[5]*k[4]*c[5]) / (k[4]+k[3]+c[0]+c[3]))"
-    - "lambda c, k: ((k[6]*k[4]*c[3]) / (k[4]+k[3]+c[0]+c[3]))"
-    - "lambda c, k: k[5]*c[5]"
-    - "lambda c, k: ((k[2]*k[0]*c[0]*c[1]) / (k[2]+k[1]+c[0]+c[3]))"
-int_eqn_desc:
-    - "(k2L*EM2*DA3)/(EM2+K2+DA1+DA2)"
-    - "(k2C*EM2*C)/(EM2+K2+DA1+DA2)"
-    - "(k2L*EM2*DA2)/(EM2+K2+DA1+DA2)"
-    - "k2C*C"
-    - "(EM1*k1*DA1*E)/(EM1+K1+DA1+DA2)"
+k_var: 
+    - name: "k1"
+      guess: 1
+    - name: "K1"
+      guess: 40
+    - name: "EM1"
+      guess: 50
+    - name: "K2"
+      guess: 45
+    - name: "EM2"
+      guess: 100
+    - name: "k2C"
+      guess: 1e-2
+    - name: "k2L"
+      guess: 2e-2
+k_const:
+conc0_var:
+    - name: "[DA1]0"
+      guess: 25
+    - name: "[EDC]0"
+      guess: 50
+conc0_const:
+    - name: "[U]0"
+      value: 0
+    - name: "[DA2]0"
+      value: 0
+    - name: "[DA3]0"
+      value: 0
+    - name: "[C]0"
+      value: 0
+species:
+    - name: "DA1"
+      plot: bottom
+    - name: "EDC"
+      plot: top
+    - name: "Urea"
+      plot: top
+    - name: "DA2"
+      plot: bottom
+    - name: "DA3"
+      plot: bottom
+    - name: "Cy"
+      plot: bottom
+integrals:
+    - desc: "(k2L*EM2*DA3)/(EM2+K2+DA1+DA2)"
+      func: "lambda c, k: ((k[6]*k[4]*c[4]) / (k[4]+k[3]+c[0]+c[3]))"
+    - desc: "(k2C*EM2*C)/(EM2+K2+DA1+DA2)"
+      func: "lambda c, k: ((k[5]*k[4]*c[5]) / (k[4]+k[3]+c[0]+c[3]))"
+    - desc: "(k2L*EM2*DA2)/(EM2+K2+DA1+DA2)"
+      func: "lambda c, k: ((k[6]*k[4]*c[3]) / (k[4]+k[3]+c[0]+c[3]))"
+    - desc: "k2C*C"
+      func: "lambda c, k: k[5]*c[5]"
+    - desc: "(EM1*k1*DA1*E)/(EM1+K1+DA1+DA2)"
+      func: "lambda c, k: ((k[2]*k[0]*c[0]*c[1]) / (k[2]+k[1]+c[0]+c[3]))"
 calcs:
-    - "lambda c, t, k, ints: ints[4]"
-    - "lambda c, t, k, ints: ints[4] / c[:, 1][0]"
-    - "lambda c, t, k, ints: ints[3]"
-    - "lambda c, t, k, ints: ints[2]"
-    - "lambda c, t, k, ints: ints[0]"
-    - "lambda c, t, k, ints: ints[1]"
-calcs_desc:
-    - "C produced directly from EDC ∫(EM1*k1*DA1*E)/(EM1+K1+DA1+DA2)dt"
-    - "C yield directly from EDC ∫(EM1*k1*DA1*E)/(EM1+K1+DA1+DA2)dt/E0"
-    - "Total C hydrolysis ∫(k2C*C)dt"
-    - "C produced from DA2 exchange ∫(k2L*EM2*DA2)/(EM2+K2+DA1+DA2)dt"
-    - "C produced from DA3 exchange ∫(k2L*EM2*DA3)/(EM2+K2+DA1+DA2)dt"
-    - "C produced from C after decomp ∫(k2C*EM2*C)/(EM2+K2+DA1+DA2)dt"
-lifetime_conc:
+    - desc: "C produced directly from EDC ∫(EM1*k1*DA1*E)/(EM1+K1+DA1+DA2)dt"
+      func: "lambda c, t, k, i: i[4]"
+    - desc: "C yield directly from EDC ∫(EM1*k1*DA1*E)/(EM1+K1+DA1+DA2)dt/E0"
+      func: "lambda c, t, k, i: i[4] / c[1][0]"
+    - desc: "Total C hydrolysis ∫(k2C*C)dt"
+      func: "lambda c, t, k, i: i[3]"
+    - desc: "C produced from DA2 exchange ∫(k2L*EM2*DA2)/(EM2+K2+DA1+DA2)dt"
+      func: "lambda c, t, k, i: i[2]"
+    - desc: "C produced from DA3 exchange ∫(k2L*EM2*DA3)/(EM2+K2+DA1+DA2)dt"
+      func: "lambda c, t, k, i: i[0]"
+    - desc: "C produced from C after decomp ∫(k2C*EM2*C)/(EM2+K2+DA1+DA2)dt"
+      func: "lambda c, t, k, i: i[1]"
+lifetime_concs:
     - 3
     - 4
     - 5
-rectime_conc:
+rectime_concs:
     - 0

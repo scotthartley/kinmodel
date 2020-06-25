@@ -7,18 +7,15 @@ data or simulated with a given set of parameters.
 import sys
 import os
 import imp
-import appdirs
 import itertools
 import numpy as np
 import scipy.integrate
 import scipy.optimize
 import scipy.linalg
 import math
-import pkgutil
 from pathos.pools import ProcessPool
 from pathos.helpers import mp as multiprocess
 from .Dataset import Dataset
-import kinmodel.models
 import yaml
 
 INDIRECT_DESC_SPACER = "\n\nOriginal model:\n"
@@ -68,28 +65,20 @@ class KineticModel:
                  name,
                  description,
                  eq_function,
-                 ks_guesses,
-                 ks_constant,
-                 conc0_guesses,
-                 conc0_constant,
-                 k_var_names,
-                 k_const_names,
-                 conc0_var_names,
-                 conc0_const_names,
-                 legend_names,
-                 top_plot,
-                 bottom_plot,
-                 sort_order,
+                 k_var,
+                 k_const,
+                 conc0_var,
+                 conc0_const,
+                 species,
                  type="direct",
-                 int_eqn=[],
-                 int_eqn_desc=[],
+                 integrals=[],
                  calcs=[],
                  calcs_desc=[],
                  weight_func=lambda exp: 1,
                  bounds=(0, np.inf),
-                 lifetime_conc=[],
+                 lifetime_concs=[],
                  lifetime_fracs=[1, 1/2.71828, 0.1, 0.01],
-                 rectime_conc=[],
+                 rectime_concs=[],
                  rectime_fracs=[0.99],
                  ):
 
@@ -101,27 +90,49 @@ class KineticModel:
         exec(eq_function, eq_module.__dict__)
         self.kin_sys = eq_module.equations
 
-        self.ks_guesses = ks_guesses if ks_guesses else []
-        self.ks_constant = ks_constant if ks_constant else []
-        self.conc0_guesses = conc0_guesses if conc0_guesses else []
-        self.conc0_constant = conc0_constant if conc0_constant else []
-        self.k_var_names = k_var_names if k_var_names else []
-        self.k_const_names = k_const_names if k_const_names else []
-        self.conc0_var_names = conc0_var_names if conc0_var_names else []
-        self.conc0_const_names = conc0_const_names if conc0_const_names else []
-        self.legend_names = legend_names
-        self.top_plot = top_plot
-        self.bottom_plot = bottom_plot
-        self.sort_order = sort_order
-        self.int_eqn = [eval(i) for i in int_eqn] if int_eqn else []
-        self.int_eqn_desc = int_eqn_desc if int_eqn_desc else []
-        self.calcs = [eval(c) for c in calcs] if calcs else []
-        self.calcs_desc = calcs_desc if calcs_desc else []
+        self.k_var_names = [k['name'] for k in k_var] if k_var else []
+        self.ks_guesses = [k['guess'] for k in k_var] if k_var else []
+        self.k_const_names = [k['name'] for k in k_const] if k_const else []
+        self.ks_constant = [k['value'] for k in k_const] if k_const else []
+        self.conc0_var_names = [c['name'] for c in conc0_var] if conc0_var else []
+        self.conc0_guesses = [c['guess'] for c in conc0_var] if conc0_var else []
+        self.conc0_const_names = [c['name'] for c in conc0_const] if conc0_const else []
+        self.conc0_constant = [c['value'] for c in conc0_const] if conc0_const else []
+
+        self.legend_names = []
+        self.sort_order = []
+        self.top_plot = []
+        self.bottom_plot = []
+        for n in range(len(species)):
+            self.legend_names.append(species[n]['name'])
+            if 'sort' in species[n]:
+                self.sort_order.append(species[n]['sort'])
+            if species[n]['plot'] == "top":
+                self.top_plot.append(n)
+            elif species[n]['plot'] == "bottom":
+                self.bottom_plot.append(n)
+
+        self.int_eqn = []
+        self.int_eqn_desc = []
+        if integrals:
+            for i in integrals:
+                self.int_eqn.append(eval(i['func']))
+                self.int_eqn_desc.append(i['desc'])
+
+        self.calcs = []
+        self.calcs_desc = []
+        if calcs:
+            for c in calcs:
+                self.calcs.append(eval(c['func']))
+                self.calcs_desc.append(c['desc'])
+        # self.calcs = [eval(c) for c in calcs] if calcs else []
+        # self.calcs_desc = calcs_desc if calcs_desc else []
+
         self.weight_func = weight_func
         self.bounds = bounds
-        self.lifetime_conc = lifetime_conc
+        self.lifetime_conc = lifetime_concs
         self.lifetime_fracs = lifetime_fracs
-        self.rectime_conc = rectime_conc
+        self.rectime_conc = rectime_concs
         self.rectime_fracs = rectime_fracs
 
     @property
@@ -902,10 +913,7 @@ class IndirectKineticModel(KineticModel):
                  parent_model,
                  description,
                  conc_mapping,
-                 legend_names,
-                 top_plot,
-                 bottom_plot,
-                 sort_order,
+                 species,
                  parent_model_name=None,
                  type="indirect",
                  int_eqn=[],
@@ -934,10 +942,20 @@ class IndirectKineticModel(KineticModel):
         self.k_const_names = self.parent_model.k_const_names
         self.conc0_var_names = self.parent_model.conc0_var_names
         self.conc0_const_names = self.parent_model.conc0_const_names
-        self.legend_names = legend_names
-        self.top_plot = top_plot
-        self.bottom_plot = bottom_plot
-        self.sort_order = sort_order
+
+        self.legend_names = []
+        self.sort_order = []
+        self.top_plot = []
+        self.bottom_plot = []
+        for n in range(len(species)):
+            self.legend_names.append(species[n]['name'])
+            if 'sort' in species[n]:
+                self.sort_order.append(species[n]['sort'])
+            if species[n]['plot'] == "top":
+                self.top_plot.append(n)
+            elif species[n]['plot'] == "bottom":
+                self.bottom_plot.append(n)
+
         self.int_eqn = self.parent_model.int_eqn
         self.int_eqn_desc = self.parent_model.int_eqn_desc
         self.calcs = self.parent_model.calcs

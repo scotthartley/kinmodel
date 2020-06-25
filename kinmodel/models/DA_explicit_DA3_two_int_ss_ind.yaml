@@ -9,23 +9,21 @@ conc_mapping: >
                         c[:, 1],
                         c[:, 2],
                         c[:, 3] + 2*c[:, 4],
-                        c[:, 5]]).transpose()
-legend_names:
-    - "Diacid"
-    - "EDC"
-    - "Urea"
-    - "Linear"
-    - "Cyclic"
-top_plot:
-    - 1
-    - 2
-bottom_plot:
-    - 0
-    - 3
-    - 4
-sort_order:
-    - 2
-    - 3
-    - 4
-    - 0
-    - 1
+                        c[:, 5]],
+              ).transpose()
+species:
+    - name: "Diacid"
+      plot: bottom
+      sort: 2
+    - name: "EDC"
+      plot: top
+      sort: 3
+    - name: "Urea"
+      plot: top
+      sort: 4
+    - name: "Linear"
+      plot: bottom
+      sort: 0
+    - name: "Cyclic"
+      plot: bottom
+      sort: 1

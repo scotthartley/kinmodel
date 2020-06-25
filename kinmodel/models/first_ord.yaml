@@ -39,8 +39,8 @@ sort_order:
 int_eqn:
 int_eqn_desc:
 calcs:
-    - "lambda cs, ts, ks, ints: max(cs[:, 0])"
-    - "lambda cs, ts, ks, ints: cs[:, 0][-1]"
+    - "lambda c, t, k, int: max(c[0])"
+    - "lambda c, t, k, int: c[0][-1]"
 calcs_desc:
     - "Maximum E"
     - "Final E"

@@ -239,7 +239,7 @@ class KineticModel:
                 calc_results.append(
                         (self.calcs_desc[i],
                          self.calcs[i](
-                                smooth_curves_out,
+                                smooth_curves_out.transpose(),
                                 smooth_ts_out,
                                 np.append(ks, concs),
                                 integrals)))

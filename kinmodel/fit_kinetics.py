@@ -6,6 +6,12 @@ package for experimental data fitting.
 import textwrap
 import argparse
 import kinmodel
+import appdirs
+import os
+
+MODEL_DIR_NAME = "models"
+APP_NAME = "kinmodel"
+APP_AUTHOR = "Scott Hartley"
 
 
 def fit_kinetics():
@@ -41,11 +47,6 @@ def fit_kinetics():
         "-cg", "--c_guesses",
         help="Override guesses for concentrations.",
         nargs="+", type=float)
-    parser.add_argument(
-        "-m", "--new_model",
-        help=("Filename of module containing additional model; "
-              "must be in working directory, omit .py extension"),
-        default=None)
     parser.add_argument(
         "-w", "--weight_min_conc",
         help=("Triggers weighted regression relative to the concentration, "
@@ -147,7 +148,13 @@ def fit_kinetics():
         action='store_true')
     args = parser.parse_args()
 
-    model = kinmodel.KineticModel.get_model(args.model_name, args.new_model)
+    model_search_dirs = [
+        os.path.join(os.getcwd(), MODEL_DIR_NAME),
+        os.path.join(appdirs.user_data_dir(APP_NAME, APP_AUTHOR), MODEL_DIR_NAME),
+        os.path.dirname(kinmodel.models.__file__)
+        ]
+
+    model = kinmodel.KineticModel.get_model(args.model_name, model_search_dirs)
 
     if args.weight_min_conc:
         model.weight_func = lambda exp: 1/max(exp, args.weight_min_conc)

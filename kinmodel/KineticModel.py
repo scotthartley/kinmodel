@@ -6,18 +6,23 @@ data or simulated with a given set of parameters.
 """
 import sys
 import os
+import imp
+import appdirs
 import itertools
 import numpy as np
 import scipy.integrate
 import scipy.optimize
 import scipy.linalg
 import math
+import pkgutil
 from pathos.pools import ProcessPool
 from pathos.helpers import mp as multiprocess
 from .Dataset import Dataset
-from .default_models import default_models
+import kinmodel.models
+import yaml
 
 INDIRECT_DESC_SPACER = "\n\nOriginal model:\n"
+MODEL_FILE_EXT = ".yaml"
 
 np.set_printoptions(threshold=sys.maxsize)
 
@@ -62,7 +67,7 @@ class KineticModel:
     def __init__(self,
                  name,
                  description,
-                 kin_sys,
+                 eq_function,
                  ks_guesses,
                  ks_constant,
                  conc0_guesses,
@@ -89,22 +94,27 @@ class KineticModel:
 
         self.name = name
         self.description = description
-        self.kin_sys = kin_sys
-        self.ks_guesses = ks_guesses
-        self.ks_constant = ks_constant
-        self.conc0_guesses = conc0_guesses
-        self.conc0_constant = conc0_constant
-        self.k_var_names = k_var_names
-        self.k_const_names = k_const_names
-        self.conc0_var_names = conc0_var_names
-        self.conc0_const_names = conc0_const_names
+
+        # Loads the "equations" function defined in the model.
+        eq_module = imp.new_module('eq_module')
+        exec(eq_function, eq_module.__dict__)
+        self.kin_sys = eq_module.equations
+
+        self.ks_guesses = ks_guesses if ks_guesses else []
+        self.ks_constant = ks_constant if ks_constant else []
+        self.conc0_guesses = conc0_guesses if conc0_guesses else []
+        self.conc0_constant = conc0_constant if conc0_constant else []
+        self.k_var_names = k_var_names if k_var_names else []
+        self.k_const_names = k_const_names if k_const_names else []
+        self.conc0_var_names = conc0_var_names if conc0_var_names else []
+        self.conc0_const_names = conc0_const_names if conc0_const_names else []
         self.legend_names = legend_names
         self.top_plot = top_plot
         self.bottom_plot = bottom_plot
         self.sort_order = sort_order
-        self.int_eqn = int_eqn
-        self.int_eqn_desc = int_eqn_desc
-        self.calcs = calcs
+        self.int_eqn = int_eqn if int_eqn else []
+        self.int_eqn_desc = int_eqn_desc if int_eqn_desc else []
+        self.calcs = [eval(c) for c in calcs]
         self.calcs_desc = calcs_desc
         self.weight_func = weight_func
         self.bounds = bounds
@@ -781,22 +791,40 @@ class KineticModel:
         return c_list[(n*c_per_n):(n*c_per_n + c_per_n)]
 
     @staticmethod
-    def get_model(model_name, new_model=None):
-        """Returns the model object corresponding to model_name, with
-        the option of specifying an additional file with new models.
+    def get_model(model_name, model_search_dirs):
+        """Returns the model object corresponding to model_name.
         """
-        if new_model:
-            sys.path.append(os.getcwd())
-            new_model = __import__(new_model).model
-            models = {**default_models, **{new_model.name: new_model}}
-        else:
-            models = default_models
+
+        direct_models_params = {}
+        indirect_models_params = {}
+
+        for directory in model_search_dirs:
+            if os.path.isdir(directory):
+                for filename in os.listdir(directory):
+                    path_to_file = os.path.join(directory, filename)
+                    if (os.path.isfile(path_to_file)
+                            and filename.endswith(MODEL_FILE_EXT)):
+                        with open(path_to_file) as file:
+                            model_params = yaml.load(file.read(),
+                                                     Loader=yaml.FullLoader)
+                        if model_params.get('type') == "indirect":
+                            if model_params['name'] not in indirect_models_params:
+                                indirect_models_params[model_params['name']] = model_params
+                        else:
+                            if model_params['name'] not in direct_models_params:
+                                direct_models_params[model_params['name']] = model_params
+
+        all_models = {}
+
+        for m in direct_models_params:
+            new_model = KineticModel(**direct_models_params[m])
+            all_models[new_model.name] = new_model
 
         try:
-            return models[model_name]
+            return all_models[model_name]
         except KeyError:
             print(f'"{model_name}" is not a valid model.')
-            print(", ".join(a for a in models), "are currently available.")
+            print(", ".join(a for a in all_models), "are currently available.")
             sys.exit(1)
 
     def _bracket_param(self, param, low, high, num_iterations, cc_mult=2):

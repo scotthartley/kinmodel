@@ -1,5 +1,5 @@
 import textwrap
-from ..KineticModel import KineticModel
+from kinmodel.KineticModel import KineticModel
 
 
 def equations(concs, t, *ks):

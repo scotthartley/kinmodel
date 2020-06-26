@@ -17,6 +17,7 @@ setup(name='kinmodel',
       url='https://hartleygroup.org',
       license='MIT',
       packages=find_packages(),
+      include_package_data=True,
       entry_points={
           'console_scripts': [
               'fit_kinetics = kinmodel:fit_kinetics',

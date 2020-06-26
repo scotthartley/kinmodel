@@ -1,0 +1,1 @@
+include kinmodel/models/*.yaml

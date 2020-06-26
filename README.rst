@@ -9,6 +9,10 @@ methods for simulating the system and fitting it to experimental
 concentration vs time data. It is a fairly straightforward
 implementation of methods in Scipy.
 
+*Note that elements of the model definition are executed within the
+program using Python’s exec() or eval functions! This is a security risk
+if models are loaded from untrusted sources.*
+
 Requirements
 ------------
 
@@ -17,6 +21,7 @@ Requirements
 -  Scipy 1.2.1
 -  Matplotlib
 -  Pathos
+-  PyYAML
 
 Installation
 ------------
@@ -54,78 +59,57 @@ total number of simulations is at most the target. More information is
 available from ``model_kinetics -h``.
 
 Some models are included as part of the default installation, but new
-ones can be defined in a separate dictionary stored in filename.py and
-then loaded with the ``-m filename`` option. This new file should have
-the following form:
+ones can be defined in a simple YAML format. The models should be loaded
+into either a ``models`` subdirectory of the working directory or in the
+user’s data directory for the program. This can be identified by running
+``fit_kinetics -h`` (the model directories are listed right after the
+descriptions of different options). A simple first order decay is
+included as a default model:
 
 ::
 
-   import textwrap
-   from kinmodel import KineticModel
+   name: first_ord
+   description: |
+       Simple first order decay
 
-   def equations(concs, t, *ks):
-       Ac, E, U, An = concs
-       k1, k_2, K = ks
+           S ---> P       (k)
 
-       return [(- k1*Ac*E - (k1*Ac**2*E)/(Ac+K) - (k_2*An*Ac)/(Ac+K) + k_2*An
-                + (k1*K*Ac*E)/(Ac+K) + (k_2*K*An)/(Ac+K)),
-               - k1*Ac*E,
-               + k1*Ac*E,
-               - k_2*An + (k1*Ac**2*E)/(Ac+K) + (k_2*An*Ac)/(Ac+K)]
+       Orders: k; S, P.
+   eq_function: |
+       def equations(concs, t, *ks):
+           S, P = concs
+           k, = ks
 
+           return [-k*S,
+                   +k*S,
+           ]
+   k_var:
+       - name: k
+         guess: 1
+   conc0_var:
+       - name: "[S]0"
+         guess: 100
+   conc0_const:
+       - name: "[P]0"
+         value: 0
+   species:
+       - name: Starting material
+         plot: bottom
+         sort: 0
+       - name: Product
+         plot: bottom
+         sort: 1
+   calcs:
+       - desc: "Maximum S"
+         func: "max(c[0])"
+       - desc: "Final S"
+         func: "c[0][-1]"
 
-   model = KineticModel(
-       name="MA_shared_int_ss",
-       description=textwrap.dedent("""\
-           Simple model with shared acylpyridinium intermediate:
-
-               Ac + E ---> I + U  (k1)
-               I + Ac <==> An     (k2, k-2)
-                    I ---> Ac     (k3)
-
-           Steady-state approximation with K=k3/k2.\
-           """),
-       kin_sys=equations,
-       ks_guesses=[0.02, 0.03, 10],
-       ks_constant=[],
-       conc0_guesses=[50, 50],
-       conc0_constant=[0, 0],
-       k_var_names=["k1", "k-2", "K"],
-       k_const_names=[],
-       conc0_var_names=["[Acid]0", "[EDC]0"],
-       conc0_const_names=["[U]0", "[An]0"],
-       legend_names=["Acid", "EDC", "Urea", "Anhydride"],
-       top_plot=[1, 2],
-       bottom_plot=[0, 3],
-       sort_order=[1, 3, 2, 0],
-       int_eqn=[
-               lambda cs, ks: ks[1]*cs[3],
-               lambda cs, ks: (ks[0]*cs[0]**2*cs[1])/(cs[0]+ks[2]),
-               lambda cs, ks: (ks[1]*cs[3]*cs[0])/(cs[0]+ks[2]), ],
-       int_eqn_desc=[
-               "k_2*An",
-               "(k1*Ac^2*E)/(Ac+K)",
-               "(k_2*An*Ac)/(Ac+K)", ],
-       calcs=[
-               lambda cs, ks, ints: max(cs[:, 3]),
-               lambda cs, ks, ints: cs[:, 3][-1],
-               lambda cs, ks, ints: ints[1][1]/ks[4], ],
-       calcs_desc=[
-               "Maximum An",
-               "Final An",
-               "An yield from (∫k1*Ac^2*E)/(Ac+K))dt/E0"],
-       lifetime_conc=[3],
-       rectime_conc=[0],
-       )
-
-Note that the concentrations (concs) with variable starting
-concentration (S1 in the example) passed first, followed by the others.
-That is, the total number of entries for starting_concs_guesses and
-starting_concs_constant should be equal to the number of species, with
-the variable ones always listed first.
-
-These models can be added to the defaults list, but ``from kinmodel``
-needs to be replaced with ``from ..KineticModel``.
+Key fields are ``eq_function``, which is a Python function of
+concentrations (concs), time (t), and parameters (ks) that returns the
+results of the kinetic equations (first derivatives of concentrations)
+defining the system. The ``sort`` field for each ``species`` is used to
+relate to the order of columns in the input.
 
 Models can also be defined with the IndirectKineticModel class. This
 allows normal KineticModel mechanisms to be used in cases where the
@@ -135,33 +119,176 @@ but individual concentrations are not). These are defined as in:
 
 ::
 
-   import textwrap
-   import numpy as np
-   from ..KineticModel import IndirectKineticModel
+   name: "DA_explicit_DA3_two_int_ss_ind"
+   type: indirect
+   parent_model_name: "DA_explicit_DA3_two_int_ss"
+   description: |
+       Indirect version of the DA_explicit_DA3_two_int_ss model, using total
+       diacid and total anhydride concentration.
+   species:
+       - name: "Diacid"
+         plot: bottom
+         sort: 2
+         map: c[0] + c[3] + c[4]
+       - name: "EDC"
+         plot: top
+         sort: 3
+         map: c[1]
+       - name: "Urea"
+         plot: top
+         sort: 4
+         map: c[2]
+       - name: "Linear"
+         plot: bottom
+         sort: 0
+         map: c[3] + 2*c[4]
+       - name: "Cyclic"
+         plot: bottom
+         sort: 1
+         map: c[5]
 
+The key here is the ``map`` field for each species, which relate them to
+concentration in the underlying model.
 
-   model = IndirectKineticModel(
-       name="DA_explicit_DA2_ss_ind",
-       parent_model_name="DA_explicit_DA2_ss",
-       description=textwrap.dedent("""\
-           Indirect version of the DA_explicit_DA2_ss model, using total
-           diacid and total anhydride concentration.\
-           """),
-       conc_mapping=lambda c: np.array([c[:, 0]+c[:, 3],
-                                        c[:, 1],
-                                        c[:, 2],
-                                        c[:, 3],
-                                        c[:, 4]]).transpose(),
-       legend_names=["Diacid", "EDC", "Urea", "Linear", "Cyclic"],
-       top_plot=[1, 2],
-       bottom_plot=[0, 3, 4],
-       sort_order=[2, 3, 4, 0, 1],
-       )
+This indirect model uses the following as its underlying mechanism:
 
-Here the parent_model_name defines the underlying mechanism. The
-conc_mapping function converts the concentrations of the species into
-the experimentally observed quantities. In the example, the “Diacid”
-concentration is the sum of the concentrations of species 0 and 4 in the
-DA_explicit_DA2 KineticModel. Integrals and calculations should not be
-specified in indirect models (they should be specified in the parent
-model).
+::
+
+   name: DA_explicit_DA3_two_int_ss
+   description: |
+       Simple model for diacid assembly with explicit consideration of
+       linear anhydride intermediates, capped at the trimer (DA3).
+       Separate intermediates for EDC consumption and anhydride
+       exchange are used.
+
+            DA1 + E ---> I1         (k1)
+                 I1 ---> DA1 + U    (kih)
+                 I1 ---> C + U      (kiC)
+           I1 + DA1 ---> DA2 + U    (kiL)
+           I1 + DA2 ---> DA3 + U    (kiL)
+                DA2 <--> DA1 + Ip1  (k2L, km2L)
+                  C <--> Ip1        (k2C, km2C)
+                DA3 <--> DA2 + Ip1  (k2L, km2L)
+                DA3 <--> Ip2 + DA1  (k2L, km2L)
+                Ip1 ---> DA1        (k3)
+                Ip2 ---> DA2        (k3)
+            DA2 + E ---> I2         (k1)
+                 I2 ---> DA2 + U    (kih)
+           I2 + DA1 ---> DA3 + U    (kiL)
+
+       Steady-state approximations with K1 = kih/kiL, EM1 = kiC/kiL,
+       K2 = k3/km2L, and EM2 = km2C/km2L.
+       Orders: k1, K1, EM1, K2, EM2, k2C, k2L; DA1, E, U, DA2, DA3, C.
+   eq_function: |
+       def equations(concs, t, *ks):
+           DA1, E, U, DA2, DA3, C = concs
+           k1, K1, EM1, K2, EM2, k2C, k2L = ks
+
+           # Return the equations for concs
+           return [
+               (DA3*k2L + k2L*DA2 - k1*DA1*E
+                   - (DA1*(DA3*k2L + k2C*C + k2L*DA2))/(EM2 + K2 + DA1 + DA2)
+                   + (K2*(DA3*k2L + k2C*C + k2L*DA2))/(EM2 + K2 + DA1 + DA2)
+                   - (k1*DA1**2*E)/(EM1 + K1 + DA1 + DA2)
+                   - (DA3*k2L*DA1)/(K2 + DA1) + (K1*k1*DA1*E)/(EM1 + K1 + DA1 + DA2)
+                   - (k1*DA1*DA2*E)/(K1 + DA1)),
+               - k1*DA1*E - k1*DA2*E,
+               + k1*DA1*E + k1*DA2*E,
+               (DA3*k2L - k2L*DA2 - k1*DA2*E
+                   + (DA1*(DA3*k2L + k2C*C + k2L*DA2))/(EM2 + K2 + DA1 + DA2)
+                   - (DA2*(DA3*k2L + k2C*C + k2L*DA2))/(EM2 + K2 + DA1 + DA2)
+                   + (DA3*K2*k2L)/(K2 + DA1) + (k1*DA1**2*E)/(EM1 + K1 + DA1 + DA2)
+                   + (K1*k1*DA2*E)/(K1 + DA1)
+                   - (k1*DA1*DA2*E)/(EM1 + K1 + DA1 + DA2)),
+               ((DA2*(DA3*k2L + k2C*C + k2L*DA2))/(EM2 + K2 + DA1 + DA2) - 2*DA3*k2L
+                   + (DA3*k2L*DA1)/(K2 + DA1)
+                   + (k1*DA1*DA2*E)/(EM1 + K1 + DA1 + DA2)
+                   + (k1*DA1*DA2*E)/(K1 + DA1)),
+               ((EM2*(DA3*k2L + k2C*C + k2L*DA2))/(EM2 + K2 + DA1 + DA2) - k2C*C
+                   + (EM1*k1*DA1*E)/(EM1 + K1 + DA1 + DA2)),
+           ]
+   k_var: 
+       - name: "k1"
+         guess: 1
+       - name: "K1"
+         guess: 40
+       - name: "EM1"
+         guess: 50
+       - name: "K2"
+         guess: 45
+       - name: "EM2"
+         guess: 100
+       - name: "k2C"
+         guess: 1e-2
+       - name: "k2L"
+         guess: 2e-2
+   k_const:
+   conc0_var:
+       - name: "[DA1]0"
+         guess: 25
+       - name: "[EDC]0"
+         guess: 50
+   conc0_const:
+       - name: "[U]0"
+         value: 0
+       - name: "[DA2]0"
+         value: 0
+       - name: "[DA3]0"
+         value: 0
+       - name: "[C]0"
+         value: 0
+   species:
+       - name: "DA1"
+         plot: bottom
+       - name: "EDC"
+         plot: top
+       - name: "Urea"
+         plot: top
+       - name: "DA2"
+         plot: bottom
+       - name: "DA3"
+         plot: bottom
+       - name: "Cy"
+         plot: bottom
+   integrals:
+       - desc: "(k2L*EM2*DA3)/(EM2+K2+DA1+DA2)"
+         func: "((k[6]*k[4]*c[4]) / (k[4]+k[3]+c[0]+c[3]))"
+       - desc: "(k2C*EM2*C)/(EM2+K2+DA1+DA2)"
+         func: "((k[5]*k[4]*c[5]) / (k[4]+k[3]+c[0]+c[3]))"
+       - desc: "(k2L*EM2*DA2)/(EM2+K2+DA1+DA2)"
+         func: "((k[6]*k[4]*c[3]) / (k[4]+k[3]+c[0]+c[3]))"
+       - desc: "k2C*C"
+         func: "k[5]*c[5]"
+       - desc: "(EM1*k1*DA1*E)/(EM1+K1+DA1+DA2)"
+         func: "((k[2]*k[0]*c[0]*c[1]) / (k[2]+k[1]+c[0]+c[3]))"
+   calcs:
+       - desc: "C produced directly from EDC ∫(EM1*k1*DA1*E)/(EM1+K1+DA1+DA2)dt"
+         func: "i[4]"
+       - desc: "C yield directly from EDC ∫(EM1*k1*DA1*E)/(EM1+K1+DA1+DA2)dt/E0"
+         func: "i[4] / c[1][0]"
+       - desc: "Total C hydrolysis ∫(k2C*C)dt"
+         func: "i[3]"
+       - desc: "C produced from DA2 exchange ∫(k2L*EM2*DA2)/(EM2+K2+DA1+DA2)dt"
+         func: "i[2]"
+       - desc: "C produced from DA3 exchange ∫(k2L*EM2*DA3)/(EM2+K2+DA1+DA2)dt"
+         func: "i[0]"
+       - desc: "C produced from C after decomp ∫(k2C*EM2*C)/(EM2+K2+DA1+DA2)dt"
+         func: "i[1]"
+   lifetime_concs:
+       - 3
+       - 4
+       - 5
+   rectime_concs:
+       - 0
+
+A useful feature of kinmodel is that the KineticModel objects can
+contain calculations that will be performed on the results of the
+regression. Various quantities, like maximum concentrations, can be
+calculated. There are two aspects of this. The ``integrals`` field
+defines equations that will be integrated across the concentration vs
+time data; ``desc`` is used to describe them in the output and ``func``
+is the function that will be integrated of parameters (k) and
+concentrations (c), indexed in the order they are listed elsewhere
+(starting from 0). ``calcs`` are functions of concentration (c), time
+(t), parameters (k), and integrals (i) that are calculated at the end
+for a given run.

@@ -1,8 +1,10 @@
 from setuptools import setup, find_packages
 
+
 def readme():
     with open("README.rst", encoding='utf8') as file:
         return file.read()
+
 
 exec(open('kinmodel/_version.py').read())
 
@@ -21,6 +23,7 @@ setup(name='kinmodel',
               'model_kinetics = kinmodel:model_kinetics',
           ]
       },
-      install_requires=['numpy', 'scipy>=1.2.1', 'matplotlib', 'pathos'],
+      install_requires=[
+          'numpy', 'scipy>=1.2.1', 'matplotlib', 'pathos', 'PyYAML'],
       python_requires=">=3.6",
       )

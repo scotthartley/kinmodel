@@ -2,37 +2,35 @@ name: first_ord
 description: |
     Simple first order decay
 
-        E ---> U       (k)
+        S ---> P       (k)
 
-    Orders: k; E, U.
+    Orders: k; S, P.
 eq_function: |
     def equations(concs, t, *ks):
-        E, U = concs
+        S, P = concs
         k, = ks
 
-        return [-k*E,
-                +k*E,
+        return [-k*S,
+                +k*S,
         ]
 k_var:
     - name: k
       guess: 1
-k_const:
 conc0_var:
-    - name: "[EDC]0"
+    - name: "[S]0"
       guess: 100
 conc0_const:
-    - name: "[U]0"
+    - name: "[P]0"
       value: 0
 species:
-    - name: EDC
+    - name: Starting material
       plot: bottom
-      sort_order: 0
-    - name: Urea
+      sort: 0
+    - name: Product
       plot: bottom
-      sort_order: 1
-integrals:
+      sort: 1
 calcs:
-    - desc: "Maximum E"
+    - desc: "Maximum S"
       func: "max(c[0])"
-    - desc: "Final E"
+    - desc: "Final S"
       func: "c[0][-1]"

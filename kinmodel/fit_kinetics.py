@@ -6,6 +6,7 @@ package for experimental data fitting.
 import textwrap
 import argparse
 import kinmodel
+import kinmodel.models
 import appdirs
 import os
 
@@ -15,11 +16,23 @@ APP_AUTHOR = "Scott Hartley"
 
 
 def fit_kinetics():
-    model_help_text = "default models:\n"
-    for m in kinmodel.default_models:
-        model_help_text += f'---\n  *{m}*\n'
+    model_search_dirs = [
+        os.path.join(os.getcwd(), MODEL_DIR_NAME),
+        os.path.join(appdirs.user_data_dir(APP_NAME, APP_AUTHOR), MODEL_DIR_NAME),
+        os.path.dirname(kinmodel.models.__file__)
+        ]
+
+    all_models = kinmodel.KineticModel.get_all_models(model_search_dirs)
+
+    model_help_text = "\nLooking for models in: \n\n{}".format(
+            "\n".join(["- " + m for m in model_search_dirs]))
+
+    model_help_text += "\n\nCurrently available models:\n\n"
+    for m in sorted(all_models.keys()):
+        model_help_text += f"---\n*{m}*\n\n"
+        model_help_text += f"Path: {all_models[m].path}\n\n"
         model_help_text += textwrap.indent(
-                kinmodel.default_models[m].description, "    ")
+                all_models[m].description, "    ")
         model_help_text += "\n"
 
     parser = argparse.ArgumentParser(
@@ -148,13 +161,7 @@ def fit_kinetics():
         action='store_true')
     args = parser.parse_args()
 
-    model_search_dirs = [
-        os.path.join(os.getcwd(), MODEL_DIR_NAME),
-        os.path.join(appdirs.user_data_dir(APP_NAME, APP_AUTHOR), MODEL_DIR_NAME),
-        os.path.dirname(kinmodel.models.__file__)
-        ]
-
-    model = kinmodel.KineticModel.get_model(args.model_name, model_search_dirs)
+    model = kinmodel.KineticModel.get_model(args.model_name, all_models)
 
     if args.weight_min_conc:
         model.weight_func = lambda exp: 1/max(exp, args.weight_min_conc)

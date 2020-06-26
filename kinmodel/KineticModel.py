@@ -20,6 +20,8 @@ import yaml
 
 INDIRECT_DESC_SPACER = "\n\nOriginal model:\n"
 MODEL_FILE_EXT = ".yaml"
+INT_LAMBDA = "lambda c, k: "
+CALC_LAMBDA = "lambda c, t, k, i: "
 
 np.set_printoptions(threshold=sys.maxsize)
 
@@ -70,7 +72,6 @@ class KineticModel:
                  conc0_var,
                  conc0_const,
                  species,
-                 type="direct",
                  integrals=[],
                  calcs=[],
                  calcs_desc=[],
@@ -80,6 +81,8 @@ class KineticModel:
                  lifetime_fracs=[1, 1/2.71828, 0.1, 0.01],
                  rectime_concs=[],
                  rectime_fracs=[0.99],
+                 path=None,
+                 **kwargs
                  ):
 
         self.name = name
@@ -94,10 +97,14 @@ class KineticModel:
         self.ks_guesses = [k['guess'] for k in k_var] if k_var else []
         self.k_const_names = [k['name'] for k in k_const] if k_const else []
         self.ks_constant = [k['value'] for k in k_const] if k_const else []
-        self.conc0_var_names = [c['name'] for c in conc0_var] if conc0_var else []
-        self.conc0_guesses = [c['guess'] for c in conc0_var] if conc0_var else []
-        self.conc0_const_names = [c['name'] for c in conc0_const] if conc0_const else []
-        self.conc0_constant = [c['value'] for c in conc0_const] if conc0_const else []
+        self.conc0_var_names = (
+                [c['name'] for c in conc0_var] if conc0_var else [])
+        self.conc0_guesses = (
+                [c['guess'] for c in conc0_var] if conc0_var else [])
+        self.conc0_const_names = (
+                [c['name'] for c in conc0_const] if conc0_const else [])
+        self.conc0_constant = (
+                [c['value'] for c in conc0_const] if conc0_const else [])
 
         self.legend_names = []
         self.sort_order = []
@@ -116,17 +123,15 @@ class KineticModel:
         self.int_eqn_desc = []
         if integrals:
             for i in integrals:
-                self.int_eqn.append(eval(i['func']))
+                self.int_eqn.append(eval(INT_LAMBDA + i['func']))
                 self.int_eqn_desc.append(i['desc'])
 
         self.calcs = []
         self.calcs_desc = []
         if calcs:
             for c in calcs:
-                self.calcs.append(eval(c['func']))
+                self.calcs.append(eval(CALC_LAMBDA + c['func']))
                 self.calcs_desc.append(c['desc'])
-        # self.calcs = [eval(c) for c in calcs] if calcs else []
-        # self.calcs_desc = calcs_desc if calcs_desc else []
 
         self.weight_func = weight_func
         self.bounds = bounds
@@ -134,6 +139,7 @@ class KineticModel:
         self.lifetime_fracs = lifetime_fracs
         self.rectime_conc = rectime_concs
         self.rectime_fracs = rectime_fracs
+        self.path = path
 
     @property
     def num_concs0(self):
@@ -662,7 +668,8 @@ class KineticModel:
                       f"of {reg_info['boot_num']}", end="")
             _, boot_plot, _, boot_calcs = self.simulate(
                     list(reg_info['boot_fit_ks'][n]) + reg_info['fixed_ks'],
-                    list(reg_info['boot_fit_concs'][dataset_n][n]) + reg_info['fixed_concs'][dataset_n], num_points,
+                    (list(reg_info['boot_fit_concs'][dataset_n][n])
+                     + reg_info['fixed_concs'][dataset_n], num_points),
                     max_time, integrate=True, calcs=True)
             if (n+1) <= CI_num:
                 plot_topCI = np.append(plot_topCI, [boot_plot], axis=0)
@@ -803,14 +810,14 @@ class KineticModel:
         return c_list[(n*c_per_n):(n*c_per_n + c_per_n)]
 
     @staticmethod
-    def get_model(model_name, model_search_dirs):
-        """Returns the model object corresponding to model_name.
+    def get_all_models(model_search_dirs):
+        """Returns a dictionary of all available models.
         """
-
         direct_models_params = {}
         indirect_models_params = {}
 
         for directory in model_search_dirs:
+            # Check if directory exists.
             if os.path.isdir(directory):
                 for filename in os.listdir(directory):
                     path_to_file = os.path.join(directory, filename)
@@ -822,9 +829,11 @@ class KineticModel:
                         if model_params.get('type') == "indirect":
                             if model_params['name'] not in indirect_models_params:
                                 indirect_models_params[model_params['name']] = model_params
+                                indirect_models_params[model_params['name']]['path'] = path_to_file
                         else:
                             if model_params['name'] not in direct_models_params:
                                 direct_models_params[model_params['name']] = model_params
+                                direct_models_params[model_params['name']]['path'] = path_to_file
 
         all_models = {}
 
@@ -839,6 +848,12 @@ class KineticModel:
                     parent_model=parent_model, **indirect_models_params[m])
             all_models[new_model.name] = new_model
 
+        return all_models
+
+    @staticmethod
+    def get_model(model_name, all_models):
+        """Returns the model object corresponding to model_name.
+        """
         try:
             return all_models[model_name]
         except KeyError:
@@ -924,6 +939,8 @@ class IndirectKineticModel(KineticModel):
                  lifetime_fracs=[1, 1/2.71828, 0.1, 0.01],
                  rectime_conc=[],
                  rectime_fracs=[0.99],
+                 path=None,
+                 **kwargs
                  ):
 
         self.parent_model = parent_model
@@ -966,6 +983,7 @@ class IndirectKineticModel(KineticModel):
         self.lifetime_fracs = self.parent_model.lifetime_fracs
         self.rectime_conc = self.parent_model.rectime_conc
         self.rectime_fracs = self.parent_model.rectime_fracs
+        self.path = path
 
     @property
     def num_data_concs(self):

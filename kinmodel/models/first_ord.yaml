@@ -33,6 +33,6 @@ species:
 integrals:
 calcs:
     - desc: "Maximum E"
-      func: "lambda c, t, k, i: max(c[0])"
+      func: "max(c[0])"
     - desc: "Final E"
-      func: "lambda c, t, k, i: c[0][-1]"
+      func: "c[0][-1]"

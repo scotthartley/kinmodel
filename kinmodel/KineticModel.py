@@ -17,9 +17,9 @@ from pathos.pools import ProcessPool
 from pathos.helpers import mp as multiprocess
 from .Dataset import Dataset
 import yaml
+import kinmodel.constants as constants
 
 INDIRECT_DESC_SPACER = "\n\nOriginal model:\n"
-MODEL_FILE_EXT = ".yaml"
 INT_LAMBDA = "lambda c, k: "
 CALC_LAMBDA = "lambda c, t, k, i: "
 CONC_MAP_LAMBDA = ["lambda c: np.array([", "]).transpose()"]
@@ -799,7 +799,7 @@ class KineticModel:
                 for filename in os.listdir(directory):
                     path_to_file = os.path.join(directory, filename)
                     if (os.path.isfile(path_to_file)
-                            and filename.endswith(MODEL_FILE_EXT)):
+                            and filename.endswith(constants.MODEL_FILE_EXT)):
                         with open(path_to_file) as file:
                             model_params = yaml.load(file.read(),
                                                      Loader=yaml.FullLoader)

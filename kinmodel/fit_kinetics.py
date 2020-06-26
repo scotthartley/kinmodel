@@ -9,17 +9,14 @@ import kinmodel
 import kinmodel.models
 import appdirs
 import os
-
-MODEL_DIR_NAME = "models"
-APP_NAME = "kinmodel"
-APP_AUTHOR = "Scott Hartley"
+import kinmodel.constants as constants
 
 
 def fit_kinetics():
     model_search_dirs = [
         os.getcwd(),
-        os.path.join(os.getcwd(), MODEL_DIR_NAME),
-        os.path.join(appdirs.user_data_dir(APP_NAME, APP_AUTHOR), MODEL_DIR_NAME),
+        os.path.join(os.getcwd(), constants.MODEL_DIR_NAME),
+        os.path.join(appdirs.user_data_dir(constants.APP_NAME, constants.APP_AUTHOR), constants.MODEL_DIR_NAME),
         os.path.dirname(kinmodel.models.__file__)
         ]
 

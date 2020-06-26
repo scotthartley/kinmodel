@@ -5,3 +5,4 @@ sample/*.txt
 sample/*.pdf
 __pycache__/
 *.egg-info
+old models/

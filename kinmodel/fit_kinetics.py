@@ -16,7 +16,9 @@ def fit_kinetics():
     model_search_dirs = [
         os.getcwd(),
         os.path.join(os.getcwd(), constants.MODEL_DIR_NAME),
-        os.path.join(appdirs.user_data_dir(constants.APP_NAME, constants.APP_AUTHOR), constants.MODEL_DIR_NAME),
+        os.path.join(appdirs.user_data_dir(constants.APP_NAME,
+                                           constants.APP_AUTHOR),
+                     constants.MODEL_DIR_NAME),
         os.path.dirname(kinmodel.models.__file__)
         ]
 

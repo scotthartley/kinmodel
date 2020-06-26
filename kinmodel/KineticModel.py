@@ -646,8 +646,8 @@ class KineticModel:
             _, boot_plot, _, boot_calcs = self.simulate(
                     list(reg_info['boot_fit_ks'][n]) + reg_info['fixed_ks'],
                     (list(reg_info['boot_fit_concs'][dataset_n][n])
-                     + reg_info['fixed_concs'][dataset_n], num_points),
-                    max_time, integrate=True, calcs=True)
+                     + reg_info['fixed_concs'][dataset_n]),
+                    num_points, max_time, integrate=True, calcs=True)
             if (n+1) <= CI_num:
                 plot_topCI = np.append(plot_topCI, [boot_plot], axis=0)
                 plot_topCI = np.sort(plot_topCI, axis=0)

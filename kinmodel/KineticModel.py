@@ -22,6 +22,7 @@ INDIRECT_DESC_SPACER = "\n\nOriginal model:\n"
 MODEL_FILE_EXT = ".yaml"
 INT_LAMBDA = "lambda c, k: "
 CALC_LAMBDA = "lambda c, t, k, i: "
+CONC_MAP_LAMBDA = ["lambda c: np.array([", "]).transpose()"]
 
 np.set_printoptions(threshold=sys.maxsize)
 
@@ -903,7 +904,6 @@ class IndirectKineticModel(KineticModel):
                  name,
                  parent_model,
                  description,
-                 conc_mapping,
                  species,
                  parent_model_name=None,
                  type="indirect",
@@ -920,7 +920,10 @@ class IndirectKineticModel(KineticModel):
                  ):
 
         self.parent_model = parent_model
-        self.conc_mapping = eval(conc_mapping)
+
+        conc_mapping = [s['map'] for s in species]
+        map_lambda = CONC_MAP_LAMBDA[0] + ",".join(conc_mapping) + CONC_MAP_LAMBDA[1]
+        self.conc_mapping = eval(map_lambda)
 
         self.name = name
         self.kin_sys = self.parent_model.kin_sys
@@ -970,7 +973,7 @@ class IndirectKineticModel(KineticModel):
                 self.kin_sys, conc0, times, args=tuple(ks),
                 mxstep=self.MAX_STEPS)
 
-        return self.conc_mapping(parent_model_soln)
+        return self.conc_mapping(parent_model_soln.transpose())
 
     def simulate(self, ks, concs, num_points, max_time, integrate=False,
                  calcs=False):
@@ -981,4 +984,7 @@ class IndirectKineticModel(KineticModel):
                 self.parent_model.simulate(
                         ks, concs, num_points, max_time, integrate, calcs))
 
-        return smooth_ts_out, self.conc_mapping(smooth_curves_out), integrals, calc_results
+        return (smooth_ts_out,
+                self.conc_mapping(smooth_curves_out.transpose()),
+                integrals,
+                calc_results)

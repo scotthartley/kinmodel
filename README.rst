@@ -60,11 +60,13 @@ available from ``model_kinetics -h``.
 
 Some models are included as part of the default installation, but new
 ones can be defined in a simple YAML format. The models should be loaded
-into either a ``models`` subdirectory of the working directory or in the
-user’s data directory for the program. This can be identified by running
-``fit_kinetics -h`` (the model directories are listed right after the
-descriptions of different options). A simple first order decay is
-included as a default model:
+into either the working directory, a ``models`` subdirectory of the
+working directory, or in the user’s data directory for the program, and
+must have the ``.yaml`` file extension. They should be the only files in
+these locations with that extension. The user data directory for the
+program can be identified by running ``fit_kinetics -h`` (the model
+directories are listed right after the descriptions of different
+options). A simple first order decay is included as a default model:
 
 ::
 

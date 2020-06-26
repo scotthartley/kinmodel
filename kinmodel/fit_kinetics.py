@@ -17,6 +17,7 @@ APP_AUTHOR = "Scott Hartley"
 
 def fit_kinetics():
     model_search_dirs = [
+        os.getcwd(),
         os.path.join(os.getcwd(), MODEL_DIR_NAME),
         os.path.join(appdirs.user_data_dir(APP_NAME, APP_AUTHOR), MODEL_DIR_NAME),
         os.path.dirname(kinmodel.models.__file__)

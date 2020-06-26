@@ -4,6 +4,8 @@ class.
 
 """
 import math
+import os
+import appdirs
 import itertools
 import argparse
 import kinmodel
@@ -11,8 +13,19 @@ import kinmodel
 PAR_ERR_TEXT = "Invalid parameter input format"
 RANGE_IND = ".."
 
+MODEL_DIR_NAME = "models"
+APP_NAME = "kinmodel"
+APP_AUTHOR = "Scott Hartley"
+
 
 def model_kinetics():
+
+    model_search_dirs = [
+        os.path.join(os.getcwd(), MODEL_DIR_NAME),
+        os.path.join(appdirs.user_data_dir(APP_NAME, APP_AUTHOR), MODEL_DIR_NAME),
+        os.path.dirname(kinmodel.models.__file__)
+        ]
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "model_name",
@@ -33,11 +46,6 @@ def model_kinetics():
         "-n", "--sim_number",
         help="Number of simulations (for parameter ranges, default 2^n)",
         type=int)
-    parser.add_argument(
-        "-m", "--new_model",
-        help=("Filename of module containing additional models; "
-              "must be in working directory, omit .py extension"),
-        default=None)
     parser.add_argument(
         "-tp", "--text_output_points",
         help=("Number of points for curves in text output (not pdf) "
@@ -95,7 +103,8 @@ def model_kinetics():
         else:
             raise ValueError(PAR_ERR_TEXT)
 
-    model = kinmodel.KineticModel.get_model(args.model_name, args.new_model)
+    all_models = kinmodel.KineticModel.get_all_models(model_search_dirs)
+    model = kinmodel.KineticModel.get_model(args.model_name, all_models)
 
     set_num = 0
     for parameter_set in itertools.product(*parameters):

@@ -32,32 +32,31 @@ class KineticModel:
     Attributes:
         name (string): Short form name used to identify model.
         description (string): Multiline description of model.
-        kin_sys (list of equations): List of differential equations that
-            will be solved.
-        ks_guesses (list of floats): Initial guesses for k's and K's.
-        ks_constant (list of floats): k's and K's that are constants.
-        conc0_guesses (list of floats): Initial guesses for
-            starting concs to be optimized.
-        conc0_constant (list of floats): Starting concentrations
-            that will be held constant.
-        k_var_names, etc. (list of strings): Labels used for the
-            parameters.
-        legend_names (list of strings): Labels used for the
-            concentrations in plots.
-        top_plot (list of ints): Concentrations that should be plotted
-            on top plot of output.
-        bottom_plot (list of ints): (see top_plot)
-        sort_order (list of ints): Translates order of columns in
-            experimental input into order of concentrations as defined
-            in model.
-        int_eqn (list of functions): Functions of concentration and
-            parameters that will be integrated, typically passed
-            as lambda functions of lists of concentrations and
-            parameters (e.g., lambda cs, ks: ...)
-        int_eqn_desc (list of strings): Descriptions of int_eqn.
+        eq_function (string): A string that will be converted into a
+            function defining the kinetic system (using exec).
+        k_var, k_const: Dictionaries of parameters (variable or
+            constant) with name and guess/value fields.
+        conc0_var, conc0_const: Dictionaries of initial concentrations
+            (variable or constant) with name and guess/value fields.
+        species: List of concentrations that will be plotted,
+            with name, plot ("top" or "bottom"), and sort fields.
+            "sort" defines the order of columns in input files.
+        integrals: List of dictionaries that will be integrated over the
+            plot. Each includes a desc (description) and func
+            (function). The function must be of parameters (k)
+            and concentrations (c), indexed as lists (e.g., c[0]).
+        calcs: Similar to integrals. Quantities that will be calculated
+            from the data. Should be functions of concentrations (c),
+            time (t), parameters (k), and integrals (i).
+        lifetime_concs/fracs: Species for which lifetimes will be
+            calculated, and what fractions will be used to define
+            lifetimes. List of indices.
+        rectime_concs/fracs: Similar to the lifetimes, but for recovery
+            times.
         weight_func: Weighting function for residuals.
         bounds (tuple of floats, default (0, np.inf)): bounds for
             parameters.
+        path: path to the original model definition file.
 
     """
 
@@ -74,13 +73,12 @@ class KineticModel:
                  species,
                  integrals=[],
                  calcs=[],
-                 calcs_desc=[],
-                 weight_func=lambda exp: 1,
-                 bounds=(0, np.inf),
                  lifetime_concs=[],
                  lifetime_fracs=[1, 1/2.71828, 0.1, 0.01],
                  rectime_concs=[],
                  rectime_fracs=[0.99],
+                 weight_func=lambda exp: 1,
+                 bounds=(0, np.inf),
                  path=None,
                  **kwargs
                  ):
@@ -424,19 +422,7 @@ class KineticModel:
                     self.bootstrap(
                             all_boot_datasets, results['x'],
                             parameter_constants, monitor, nodes=boot_nodes))
-            # Old code that runs one dataset at a time.
-            # for d in range(num_datasets):
-            #     if monitor:
-            #         print(f"Simulating bootstrap dataset {d+1} of "
-            #               f"{num_datasets}")
-            #     reg_info['boot_param_CIs'].append(self.bootstrap_param_CIs(
-            #             reg_info, d, boot_CI))
-            #     boot_CIs, boot_calc_CIs, boot_ts = self.bootstrap_plot_CIs(
-            #             reg_info, d, boot_CI, boot_points, boot_t_exp, monitor)
-            #     reg_info['boot_plot_CIs'].append(boot_CIs)
-            #     reg_info['boot_calc_CIs'].append(boot_calc_CIs)
-            #     reg_info['boot_plot_ts'].append(boot_ts)
-            # breakpoint()
+
             with ProcessPool(nodes=boot_nodes) as p:
                 lock = multiprocess.Manager().Lock()
                 counter = multiprocess.Manager().Value('i', 0)
@@ -606,16 +592,6 @@ class KineticModel:
         num_datasets = len(all_datasets[0])
         boot_params = np.empty(
                 (0, self.num_var_ks+self.num_var_concs0*num_datasets))
-
-        # # Old code that runs bootstrap fits in serial.
-        # n = 0
-        # for datasets in all_datasets:
-        #     n += 1
-        #     if monitor:
-        #         print(f"Bootstrapping fit {n} of {total_datasets}")
-        #     boot_params = np.append(boot_params, [results(datasets, fit_params, constants)], axis=0)
-
-        # New code that runs bootstrap fits in parallel.
 
         with ProcessPool(nodes=nodes) as p:
             lock = multiprocess.Manager().Lock()

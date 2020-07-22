@@ -384,7 +384,8 @@ def prepare_conf_contours(pair):
     return text
 
 
-def generate_cc_plot(pair, num_points, reg_info, output_base_filename):
+def generate_cc_plot(pair, num_points, reg_info, output_base_filename,
+                     output_contour_plot=False):
     """Generates contour plots for confidence contours.
     """
     rcParams.update(PLT_PARAMS)
@@ -399,15 +400,16 @@ def generate_cc_plot(pair, num_points, reg_info, output_base_filename):
     Z = np.reshape(zlist_inv, (num_points, num_points)).T
 
     # Generate contour plot
-    plt.figure(figsize=FIGURE_SIZE_1)
-    # cp = plt.contour(X, Y, Z, CONTOUR_LEVELS, colors='black')
-    cpf = plt.contourf(X, Y, Z, CONTOUR_LEVELS)
-    plt.colorbar(cpf, ticks=CONTOUR_TICKS)
-    plt.xlabel(pair[0][0])
-    plt.ylabel(pair[0][1])
-    plt.tight_layout()
-    plt.savefig(output_base_filename + "_c.pdf")
-    plt.close()
+    if output_contour_plot:
+        plt.figure(figsize=FIGURE_SIZE_1)
+        # cp = plt.contour(X, Y, Z, CONTOUR_LEVELS, colors='black')
+        cpf = plt.contourf(X, Y, Z, CONTOUR_LEVELS)
+        plt.colorbar(cpf, ticks=CONTOUR_TICKS)
+        plt.xlabel(pair[0][0])
+        plt.ylabel(pair[0][1])
+        plt.tight_layout()
+        plt.savefig(output_base_filename + "_c.pdf")
+        plt.close()
 
     # Generate heatmap
     plt.figure(figsize=FIGURE_SIZE_1)
@@ -457,6 +459,7 @@ def fit_and_output(
             confidence_contour_intervals=None,
             confidence_contour_multiplier=3.0,
             confidence_contour_cs=False,
+            confidence_contour_include_ccplot=False,
             more_stats=False,
             common_y=True,
             plot_no_params=False,
@@ -559,5 +562,7 @@ def fit_and_output(
             with open(cc_text_filename, 'w', encoding='utf-8') as write_file:
                 print(cc_output_text, file=write_file)
 
-            generate_cc_plot(param_pair, confidence_contour_intervals,
-                             reg_info, cc_filename)
+            generate_cc_plot(
+                    param_pair, confidence_contour_intervals, reg_info,
+                    cc_filename,
+                    output_contour_plot=confidence_contour_include_ccplot)

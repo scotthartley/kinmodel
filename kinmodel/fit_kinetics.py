@@ -101,6 +101,11 @@ def fit_kinetics():
         help=("Include fit concentrations in confidence contours"),
         action='store_true')
     parser.add_argument(
+        "-ccicp", "--confidence_contour_include_ccplot",
+        help=("Output actual contour plots of confidence contours (and not "
+              "just heat maps"),
+        action='store_true')
+    parser.add_argument(
         "-so", "--summary_output",
         help="Excludes conc vs time data from text output",
         action='store_true')
@@ -195,6 +200,7 @@ def fit_kinetics():
             confidence_contour_intervals=args.confidence_contour_intervals,
             confidence_contour_multiplier=args.confidence_contour_multiplier,
             confidence_contour_cs=args.confidence_contour_concs,
+            confidence_contour_include_ccplot=args.confidence_contour_include_ccplot,
             more_stats=args.more_stats,
             common_y=args.common_y,
             plot_no_params=args.no_parameters,

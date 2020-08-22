@@ -8,6 +8,7 @@ import os
 import appdirs
 import itertools
 import argparse
+import pickle
 import kinmodel
 import kinmodel.constants as constants
 
@@ -36,8 +37,15 @@ def model_kinetics():
         help="Total time for simulation",
         type=float)
     parser.add_argument(
-        "parameters",
-        help="List of parameters for model",
+        "-ks", "--ks",
+        help="List of rate constants and parameters for model",
+        nargs="+")
+    parser.add_argument(
+        "-l", "--load",
+        help="Pickle file from which to load ks")
+    parser.add_argument(
+        "-cs", "--concs",
+        help="List of starting concentrations",
         nargs="+")
     parser.add_argument(
         "-f", "--filename",
@@ -65,49 +73,60 @@ def model_kinetics():
         nargs=2, type=str)
     args = parser.parse_args()
 
-    num_ranges = len([t for t in args.parameters if RANGE_IND in t])
-    if args.sim_number:
-        sim_number = args.sim_number
-    else:
-        sim_number = 2**(num_ranges)
-
-    if num_ranges > 0:
-        sims_per_range = math.floor(sim_number**(1/num_ranges))
-        index_digits = math.floor(math.log10(sims_per_range**num_ranges)) + 1
-    else:
-        sims_per_range = None
-        index_digits = 1
-
-    if sims_per_range == 1:
-        raise ValueError("Too few simulations specified for number of ranged "
-                         "parameters.")
-
-    parameters = []
-    for parameter in args.parameters:
-        parameter_range = parameter.split(RANGE_IND)
-        if len(parameter_range) == 1:
-            try:
-                parameters.append([float(parameter_range[0])])
-            except ValueError:
-                print(PAR_ERR_TEXT)
-        elif len(parameter_range) == 2:
-            try:
-                p0 = float(parameter_range[0])
-                p1 = float(parameter_range[1])
-                delta = (p1-p0)/(sims_per_range-1)
-                parameters.append([])
-                for n in range(sims_per_range):
-                    parameters[-1].append(p0 + delta*n)
-            except ValueError:
-                print(PAR_ERR_TEXT)
+    if args.ks:
+        # Load parameters from command line, including ranges.
+        loaded_parameters = args.ks + args.concs
+        num_ranges = len([t for t in loaded_parameters if RANGE_IND in t])
+        if args.sim_number:
+            sim_number = args.sim_number
         else:
-            raise ValueError(PAR_ERR_TEXT)
+            sim_number = 2**(num_ranges)
+
+        if num_ranges > 0:
+            sims_per_range = math.floor(sim_number**(1/num_ranges))
+        else:
+            sims_per_range = None
+
+        if sims_per_range == 1:
+            raise ValueError("Too few simulations specified for number of "
+                             "ranged parameters.")
+
+        parameters = []
+        for parameter in loaded_parameters:
+            parameter_range = parameter.split(RANGE_IND)
+            if len(parameter_range) == 1:
+                try:
+                    parameters.append([float(parameter_range[0])])
+                except ValueError:
+                    print(PAR_ERR_TEXT)
+            elif len(parameter_range) == 2:
+                try:
+                    p0 = float(parameter_range[0])
+                    p1 = float(parameter_range[1])
+                    delta = (p1-p0)/(sims_per_range-1)
+                    parameters.append([])
+                    for n in range(sims_per_range):
+                        parameters[-1].append(p0 + delta*n)
+                except ValueError:
+                    print(PAR_ERR_TEXT)
+            else:
+                raise ValueError(PAR_ERR_TEXT)
+        all_parameters = list(itertools.product(*parameters))
+    elif args.load:
+        # Load bootstrapped parameters from pickle file.
+        with open(args.load, 'rb') as file:
+            loaded_reg_info = pickle.load(file)
+        all_ks = [list(x) for x in loaded_reg_info['boot_fit_ks']]
+        concs = [float(x) for x in args.concs]
+        all_parameters = [x + concs for x in all_ks]
 
     all_models = kinmodel.KineticModel.get_all_models(model_search_dirs)
     model = kinmodel.KineticModel.get_model(args.model_name, all_models)
 
+    # Number of digits to use in filenames.
+    index_digits = math.floor(math.log10(len(all_parameters))) + 1
     set_num = 0
-    for parameter_set in itertools.product(*parameters):
+    for parameter_set in all_parameters:
         set_num += 1
         ks = list(parameter_set[:model.num_ks])
         concs = list(parameter_set[model.num_ks:])

@@ -424,12 +424,25 @@ class KineticModel:
                             all_boot_datasets, results['x'],
                             parameter_constants, monitor, nodes=boot_nodes))
 
-            with ProcessPool(nodes=boot_nodes) as p:
-                lock = multiprocess.Manager().Lock()
-                counter = multiprocess.Manager().Value('i', 0)
-                boot_CI_results = p.map(
-                        _sim_boot, [(d, lock, counter) for d in
-                                    list(range(num_datasets))])
+            if boot_nodes != 1:
+                with ProcessPool(nodes=boot_nodes) as p:
+                    lock = multiprocess.Manager().Lock()
+                    counter = multiprocess.Manager().Value('i', 0)
+                    boot_CI_results = p.map(
+                            _sim_boot, [(d, lock, counter) for d in
+                                        list(range(num_datasets))])
+            else:
+                boot_CI_results = []
+                for d in range(num_datasets):
+                    print(f"Bootstrapping simulation dataset {d+1} of "
+                          f"{num_datasets}")
+                    param_CIs = self.bootstrap_param_CIs(reg_info, d, boot_CI)
+                    boot_CIs, boot_calc_CIs, boot_ts = self.bootstrap_plot_CIs(
+                            reg_info, d, boot_CI, boot_points, boot_t_exp,
+                            monitor=False)
+                    boot_CI_results.append(
+                            (d, param_CIs, boot_CIs, boot_calc_CIs, boot_ts))
+
             reg_info['boot_CI'] = boot_CI
             reg_info['boot_param_CIs'] = []
             reg_info['boot_plot_CIs'] = []
@@ -528,18 +541,38 @@ class KineticModel:
 
                 p_combos = [p for p in itertools.product(p1_vals, p2_vals)]
                 total_p_combos = len(p_combos)
-                with ProcessPool(nodes=nodes) as p:
-                    lock = multiprocess.Manager().Lock()
-                    counter = multiprocess.Manager().Value('i', 0)
-                    cc_results = p.map(
-                            _results,
-                            [(ps, p1_ind, p2_ind, var_params,
-                              var_params_ind, lock, counter)
-                             for ps in p_combos])
+
+                if nodes != 1:
+                    with ProcessPool(nodes=nodes) as p:
+                        lock = multiprocess.Manager().Lock()
+                        counter = multiprocess.Manager().Value('i', 0)
+                        cc_results = p.map(
+                                _results,
+                                [(ps, p1_ind, p2_ind, var_params,
+                                  var_params_ind, lock, counter)
+                                 for ps in p_combos])
+                        results.append([(all_parameter_names[p1_ind],
+                                         all_parameter_names[p2_ind]),
+                                       cc_results])
+                else:
+                    cc_results = []
+                    for n in range(len(p_combos)):
+                        print(f"Confidence contours for "
+                              f"{all_parameter_names[p1_ind]} and "
+                              f"{all_parameter_names[p2_ind]}, "
+                              f"fit {n+1} of {total_p_combos}")
+                        cc_result = scipy.optimize.least_squares(
+                                self._residual_fix, var_params,
+                                bounds=self.bounds,
+                                args=(var_params_ind, p_combos[n],
+                                const_params_ind, datasets,
+                                reg_info['parameter_constants'], False))
+                        ssr = cc_result.cost * 2
+                        cc_results.append(
+                                (p_combos[n][0], p_combos[n][1], ssr))
                     results.append([(all_parameter_names[p1_ind],
                                      all_parameter_names[p2_ind]),
-                                   cc_results])
-
+                                     cc_results])
         return results
 
     def _pure_residuals(self, datasets, reg_info, parameter_constants):
@@ -591,14 +624,20 @@ class KineticModel:
 
         total_datasets = len(all_datasets)
         num_datasets = len(all_datasets[0])
-        boot_params = np.empty(
-                (0, self.num_var_ks+self.num_var_concs0*num_datasets))
 
-        with ProcessPool(nodes=nodes) as p:
-            lock = multiprocess.Manager().Lock()
-            counter = multiprocess.Manager().Value('i', 0)
-            boot_params = p.map(
-                _results, [(d, counter, lock) for d in all_datasets])
+        if nodes != 1:
+            with ProcessPool(nodes=nodes) as p:
+                lock = multiprocess.Manager().Lock()
+                counter = multiprocess.Manager().Value('i', 0)
+                boot_params = p.map(
+                    _results, [(d, counter, lock) for d in all_datasets])
+        else:
+            boot_params = []
+            for n in range(len(all_datasets)):
+                print(f"Bootstrapping fit {n+1} of {total_datasets}")
+                boot_params.append(scipy.optimize.least_squares(
+                        self._residual, fit_params, bounds=self.bounds,
+                        args=(all_datasets[n], constants, False))['x'])
 
         boot_fit_ks = []
         boot_fit_concs = [[] for _ in range(num_datasets)]

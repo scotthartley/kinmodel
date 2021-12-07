@@ -6,7 +6,6 @@ data or simulated with a given set of parameters.
 """
 import sys
 import os
-import imp
 import itertools
 import numpy as np
 import scipy.integrate
@@ -88,9 +87,9 @@ class KineticModel:
         self.description = description
 
         # Loads the "equations" function defined in the model.
-        eq_module = imp.new_module('eq_module')
-        exec(eq_function, eq_module.__dict__)
-        self.kin_sys = eq_module.equations
+        locals_dict = {}
+        exec(eq_function, locals_dict)
+        self.kin_sys = locals_dict['equations']
 
         self.k_var_names = [k['name'] for k in k_var] if k_var else []
         self.ks_guesses = [k['guess'] for k in k_var] if k_var else []

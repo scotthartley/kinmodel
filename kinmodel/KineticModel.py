@@ -451,7 +451,7 @@ class KineticModel:
 
     def confidence_contours(self, reg_info, datasets, num_datasets,
                             num_intervals, cc_mult=2.0, monitor=False,
-                            nodes=None, include_cs=False):
+                            nodes=-1, include_cs=False):
         """Generates confidence contour data around each pair of fit
         parameters.
 
@@ -462,14 +462,7 @@ class KineticModel:
         def _results(inp):
             """Reformats _residual_fix for parallel processing.
             """
-            (p1, p2), p1_ind, p2_ind, var_params, var_params_ind, lock, c = inp
-            if monitor:
-                with lock:
-                    c.value += 1
-                    print(f"Confidence contours for "
-                          f"{all_parameter_names[p1_ind]} and "
-                          f"{all_parameter_names[p2_ind]}, "
-                          f"fit {c.value} of {total_p_combos}")
+            (p1, p2), p1_ind, p2_ind, var_params, var_params_ind = inp
             cc_results = scipy.optimize.least_squares(
                     self._residual_fix, var_params,
                     bounds=self.bounds,
@@ -530,37 +523,24 @@ class KineticModel:
                 p_combos = [p for p in itertools.product(p1_vals, p2_vals)]
                 total_p_combos = len(p_combos)
 
-                if nodes != 1:
-                    with ProcessPool(nodes=nodes) as p:
-                        lock = multiprocess.Manager().Lock()
-                        counter = multiprocess.Manager().Value('i', 0)
-                        cc_results = p.map(
-                                _results,
-                                [(ps, p1_ind, p2_ind, var_params,
-                                  var_params_ind, lock, counter)
-                                 for ps in p_combos])
-                        results.append([(all_parameter_names[p1_ind],
-                                         all_parameter_names[p2_ind]),
-                                       cc_results])
-                else:
-                    cc_results = []
-                    for n in range(len(p_combos)):
-                        print(f"Confidence contours for "
-                              f"{all_parameter_names[p1_ind]} and "
-                              f"{all_parameter_names[p2_ind]}, "
-                              f"fit {n+1} of {total_p_combos}")
-                        cc_result = scipy.optimize.least_squares(
-                                self._residual_fix, var_params,
-                                bounds=self.bounds,
-                                args=(var_params_ind, p_combos[n],
-                                const_params_ind, datasets,
-                                reg_info['parameter_constants'], False))
-                        ssr = cc_result.cost * 2
-                        cc_results.append(
-                                (p_combos[n][0], p_combos[n][1], ssr))
+                if monitor:
+                    print(f"Confidence contours for "
+                          f"{all_parameter_names[p1_ind]} and "
+                          f"{all_parameter_names[p2_ind]}:")
+                    cc_results = Parallel(n_jobs=nodes)(
+                            delayed(_results)((ps, p1_ind, p2_ind, var_params,
+                                           var_params_ind)) for ps in tqdm(p_combos))
                     results.append([(all_parameter_names[p1_ind],
                                      all_parameter_names[p2_ind]),
                                      cc_results])
+                else:
+                    cc_results = Parallel(n_jobs=nodes)(
+                            delayed(_results)((ps, p1_ind, p2_ind, var_params,
+                                           var_params_ind)) for ps in p_combos)
+                    results.append([(all_parameter_names[p1_ind],
+                                     all_parameter_names[p2_ind]),
+                                     cc_results])
+
         return results
 
     def _pure_residuals(self, datasets, reg_info, parameter_constants):

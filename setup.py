@@ -25,7 +25,7 @@ setup(name='kinmodel',
           ]
       },
       install_requires=[
-          'numpy', 'scipy>=1.2.1', 'matplotlib', 'pathos', 'PyYAML',
+          'numpy', 'scipy>=1.2.1', 'matplotlib', 'joblib', 'PyYAML',
           'appdirs'],
       python_requires=">=3.6",
       )

@@ -12,8 +12,8 @@ import scipy.integrate
 import scipy.optimize
 import scipy.linalg
 import math
-from pathos.pools import ProcessPool
-from pathos.helpers import mp as multiprocess
+from joblib import Parallel, delayed
+from tqdm import tqdm
 from .Dataset import Dataset
 import yaml
 import kinmodel.constants as constants
@@ -268,7 +268,7 @@ class KineticModel:
                      conc0_guesses=None, ks_const=None,
                      conc0_const=None, N_boot=0, monitor=False,
                      boot_CI=95, boot_points=1000, boot_t_exp=1.1,
-                     boot_force1st=False, boot_nodes=None,
+                     boot_force1st=False, boot_nodes=-1,
                      cc_ints=10, cc_mult=3.0, cc_include_cs=False):
         """Performs a fit to a set of datasets containing time and
         concentration data.
@@ -277,12 +277,7 @@ class KineticModel:
         def _sim_boot(inp):
             """Wrapper function to parallelize bootstrap simulations.
             """
-            d, lock, cnt = inp
-            if monitor:
-                with lock:
-                    cnt.value += 1
-                    print(f"Bootstrapping simulation dataset {cnt.value} of "
-                          f"{num_datasets}")
+            d = inp
             param_CIs = self.bootstrap_param_CIs(reg_info, d, boot_CI)
             boot_CIs, boot_calc_CIs, boot_ts = self.bootstrap_plot_CIs(
                     reg_info, d, boot_CI, boot_points, boot_t_exp,
@@ -334,7 +329,7 @@ class KineticModel:
 
         results = scipy.optimize.least_squares(
                 self._residual, parameter_guesses, bounds=self.bounds,
-                args=(datasets, parameter_constants, monitor))
+                args=(datasets, parameter_constants, False))
 
         reg_info = {}
         reg_info['datasets'] = datasets
@@ -384,6 +379,9 @@ class KineticModel:
         reg_info['message'] = results['message']
         reg_info['ssr'] = results.cost * 2
 
+        if monitor:
+            print(f"Final ssr (weighted): {reg_info['ssr']}")
+
         reg_info['total_points'] = total_points
         reg_info['total_params'] = (self.num_var_ks
                                     + self.num_var_concs0*num_datasets)
@@ -423,24 +421,15 @@ class KineticModel:
                             all_boot_datasets, results['x'],
                             parameter_constants, monitor, nodes=boot_nodes))
 
-            if boot_nodes != 1:
-                with ProcessPool(nodes=boot_nodes) as p:
-                    lock = multiprocess.Manager().Lock()
-                    counter = multiprocess.Manager().Value('i', 0)
-                    boot_CI_results = p.map(
-                            _sim_boot, [(d, lock, counter) for d in
-                                        list(range(num_datasets))])
+            if monitor:
+                print("Bootstrapping simulations:")
+                boot_CI_results = Parallel(n_jobs=boot_nodes)(
+                        delayed(_sim_boot)(d)
+                                for d in tqdm(list(range(num_datasets))))
             else:
-                boot_CI_results = []
-                for d in range(num_datasets):
-                    print(f"Bootstrapping simulation dataset {d+1} of "
-                          f"{num_datasets}")
-                    param_CIs = self.bootstrap_param_CIs(reg_info, d, boot_CI)
-                    boot_CIs, boot_calc_CIs, boot_ts = self.bootstrap_plot_CIs(
-                            reg_info, d, boot_CI, boot_points, boot_t_exp,
-                            monitor=False)
-                    boot_CI_results.append(
-                            (d, param_CIs, boot_CIs, boot_calc_CIs, boot_ts))
+                boot_CI_results = Parallel(n_jobs=boot_nodes)(
+                        delayed(_sim_boot)(d)
+                                for d in list(range(num_datasets)))
 
             reg_info['boot_CI'] = boot_CI
             reg_info['boot_param_CIs'] = []
@@ -602,7 +591,7 @@ class KineticModel:
         return residuals
 
     def bootstrap(self, all_datasets, fit_params, constants,
-                  monitor=False, nodes=None):
+                  monitor=False, nodes=-1):
         """Process a set of datasets obtained by a bootstrapping method,
         returning the ks and concs.
 
@@ -611,11 +600,7 @@ class KineticModel:
             """Used to parallelize fitting of datasets.
 
             """
-            datasets, cnt, lock = inp
-            if monitor:
-                with lock:
-                    cnt.value += 1
-                    print(f"Bootstrapping fit {cnt.value} of {total_datasets}")
+            datasets = inp
             fit = scipy.optimize.least_squares(
                     self._residual, fit_params, bounds=self.bounds,
                     args=(datasets, constants, False))['x']
@@ -624,19 +609,13 @@ class KineticModel:
         total_datasets = len(all_datasets)
         num_datasets = len(all_datasets[0])
 
-        if nodes != 1:
-            with ProcessPool(nodes=nodes) as p:
-                lock = multiprocess.Manager().Lock()
-                counter = multiprocess.Manager().Value('i', 0)
-                boot_params = p.map(
-                    _results, [(d, counter, lock) for d in all_datasets])
+        if monitor:
+            print("Bootstrapping fits:")
+            boot_params = Parallel(n_jobs=nodes)(
+                    delayed(_results)(d) for d in tqdm(all_datasets))
         else:
-            boot_params = []
-            for n in range(len(all_datasets)):
-                print(f"Bootstrapping fit {n+1} of {total_datasets}")
-                boot_params.append(scipy.optimize.least_squares(
-                        self._residual, fit_params, bounds=self.bounds,
-                        args=(all_datasets[n], constants, False))['x'])
+            boot_params = Parallel(n_jobs=nodes)(
+                    delayed(_results)(d) for d in all_datasets)
 
         boot_fit_ks = []
         boot_fit_concs = [[] for _ in range(num_datasets)]

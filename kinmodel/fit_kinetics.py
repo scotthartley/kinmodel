@@ -85,7 +85,7 @@ def fit_kinetics():
         "-bn", "--bootstrap_nodes",
         help=("Number of nodes to be used in parallel processing "
               "(default=all)"),
-        type=int, default=None)
+        type=int, default=-1)
     parser.add_argument(
         "-cci", "--confidence_contour_intervals",
         help=("Number of intervals to be used in generating confidence "

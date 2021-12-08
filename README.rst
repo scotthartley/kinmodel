@@ -20,7 +20,8 @@ Requirements
 -  Numpy
 -  Scipy 1.2.1
 -  Matplotlib
--  Pathos
+-  joblib
+-  tqdm
 -  PyYAML
 
 Installation

@@ -185,23 +185,38 @@ class KineticModel:
 
     @property
     def len_params(self):
-        return max(len(n) for n in self.parameter_names)
+        if self.parameter_names:
+            return max(len(n) for n in self.parameter_names)
+        else:
+            return 0
 
     @property
     def len_consts(self):
-        return max(len(n) for n in self.constant_names)
+        if self.constant_names:
+            return max(len(n) for n in self.constant_names)
+        else:
+            return 0
 
     @property
     def len_legend(self):
-        return max(len(n) for n in self.legend_names)
+        if self.legend_names:
+            return max(len(n) for n in self.legend_names)
+        else:
+            return 0
 
     @property
     def len_int_eqn_desc(self):
-        return max(len(n) for n in self.int_eqn_desc)
+        if self.int_eqn_desc:
+            return max(len(n) for n in self.int_eqn_desc)
+        else:
+            return 0
 
     @property
     def len_calcs_desc(self):
-        return max(len(n) for n in self.calcs_desc)
+        if self.calcs_desc:
+            return max(len(n) for n in self.calcs_desc)
+        else:
+            return 0
 
     @property
     def num_calcs(self):

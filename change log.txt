@@ -1,0 +1,626 @@
+*** Change log ***
+  : "fit_kinetics.py", "KineticModel.py", "fit_to_model.py", "simulate_model.py", "Dataset.py" are modified to fulfill our necessities.
+  : Our data sets differ in initial concentration each other from each other. Therefore, we want to fix initial guess for initial concentration to known value.
+
+  1) Add words (line 50, 54, 58, 62 in fit_kinetics.py)
+      "nargs="+", type=float)"   ----> "nargs="+", type=float, action = 'append')"
+
+  2) Add lines (new lines between line 175~177 in fit_kinetics.py)
+    Before)
+    model.name += f"_re{args.weight_min_conc}"
+
+    fixed_ks = args.fixed_ks if args.fixed_ks else None
+
+    After)
+    model.name += f"_re{args.weight_min_conc}"
+
+    args.fixed_ks=sum(args.fixed_ks, []) if args.fixed_ks else None
+    args.fixed_cs=sum(args.fixed_cs, []) if args.fixed_cs else None
+    args.k_guesses=sum(args.k_guesses, []) if args.k_guesses else None
+    args.c_guesses=sum(args.c_guesses, []) if args.c_guesses else None
+
+    fixed_ks = args.fixed_ks if args.fixed_ks else None
+	  
+-------------------------------------------------------------------------------------------------------------------------------	  
+
+  : Because our concentration data is measured in log time scale, we changed codes to simulate final result in log time scale.
+    + We consider the case when time for the first data point is not zero.
+  ** Caution: If you want to use integral, you should not change this or you need to debug the code related to deltaT. I made it but I don't know it works.
+  1) Add parser (line 166 in fit_kinetics.py)
+    Before)
+    action='store_true')
+    args = parser.parse_args()
+
+    After)
+    action='store_true')
+    parser.add_argument(
+        "-log","--semilog_x",
+        help=("For semilog x plotting"),
+        action='store_true')
+    args = parser.parse_args()
+  
+  2) Add words (line 209 in fit_kinetics.py)
+    Before)
+            load_reg_info=args.load_reg_info,
+            )
+    After)
+            load_reg_info=args.load_reg_info,
+            plot_semilogx=args.semilog_x
+            )
+  
+  3) Add words (line 469 in fit_to_model.py)
+    Before)
+            load_reg_info=False):
+    """Carry out the fit of the model and output the data.
+	After)
+            load_reg_info=False):
+            plot_semilogx=True):
+    """Carry out the fit of the model and output the data.
+	
+  4) Add lines (line 25 in Dataset.py)
+    Before)
+        return max(self.times)
+
+    @classmethod
+    def read_raw_data(cls, model, data_filename) -> ['Dataset']:
+	
+	After)
+        return max(self.times)
+
+    @property # new code
+    def min_time(self):
+        return self.times[0]
+
+    @property # new code
+    def second_time(self):
+        return self.times[1]
+
+    @classmethod
+    def read_raw_data(cls, model, data_filename) -> ['Dataset']:
+  
+  5) Add line (line 491 in fit_to_model.py)
+    Before)
+                cc_include_cs=confidence_contour_cs)
+
+        file_suffix = ""
+	After)
+                cc_include_cs=confidence_contour_cs,
+                plot_semilogx=plot_semilogx) # New code
+
+        file_suffix = ""
+		
+  6) Add word (line 287 in KineticModel.py)
+    Before)
+    def fit_to_model(self, datasets, ks_guesses=None,
+                     conc0_guesses=None, ks_const=None,
+                     conc0_const=None, N_boot=0, monitor=False,
+                     boot_CI=95, boot_points=1000, boot_t_exp=1.1,
+                     boot_force1st=False, boot_nodes=-1,
+                     cc_ints=10, cc_mult=3.0, cc_include_cs=False):
+
+    After)
+    def fit_to_model(self, datasets, ks_guesses=None,
+                     conc0_guesses=None, ks_const=None,
+                     conc0_const=None, N_boot=0, monitor=False,
+                     boot_CI=95, boot_points=1000, boot_t_exp=1.1,
+                     boot_force1st=False, boot_nodes=-1,
+                     cc_ints=10, cc_mult=3.0, cc_include_cs=False, plot_semilogx=True):
+
+  7) Change paragraph (line 379~384 in KineticModel.py)
+    Before)
+        reg_info['predicted_data'] = []
+        for d in range(num_datasets):
+            reg_info['predicted_data'].append(self._solved_kin_sys(
+                    reg_info['fit_concs'][d] + reg_info['fixed_concs'][d],
+                    reg_info['fit_ks'] + reg_info['fixed_ks'],
+                    reg_info['dataset_times'][d]))
+
+    After)
+        reg_info['predicted_data'] = []
+        reg_info['predicted_time'] = [] # new line
+        for d in range(num_datasets):
+            if plot_semilogx:
+                if datasets[d].min_time == 0:                     
+                    predicted_time = np.concatenate((np.zeros(1,),np.logspace(np.log10(datasets[d].second_time), np.log10(datasets[d].max_time), boot_points-1)),axis=0)
+                else:
+                    predicted_time = np.logspace(np.log10(datasets[d].min_time), np.log10(datasets[d].max_time), boot_points)
+
+            else:                    
+                predicted_time = np.linspace(datasets[d].min_time, datasets[d].max_time, boot_points)  
+
+            reg_info['predicted_time'].append(predicted_time)
+            reg_info['predicted_data'].append(self._solved_kin_sys(
+                    reg_info['fit_concs'][d] + reg_info['fixed_concs'][d],
+                    reg_info['fit_ks'] + reg_info['fixed_ks'],
+                    predicted_time))
+  
+  8) change lines (line 644 in KineticModel.py)
+    Before)
+        max_time = max(reg_info['dataset_times'][dataset_n])*time_exp_factor
+        smooth_ts_out, _ = np.linspace(0, max_time, num_points, retstep=True)
+    After)
+        smooth_ts_out = reg_info['predicted_time'][dataset_n]
+
+  9) Change input variable (line 225 in KineticModel.py)
+    Before)
+    def simulate(self, ks, concs, num_points, max_time, integrate=False,
+    After)
+    def simulate(self, ks, concs, smooth_ts_out, integrate=False,
+
+  10) Add words (line 662 in KineticModel.py)
+    Before)
+            _, boot_plot, _, boot_calcs = self.simulate(
+                    list(reg_info['boot_fit_ks'][n]) + reg_info['fixed_ks'],
+                    (list(reg_info['boot_fit_concs'][dataset_n][n])
+                     + reg_info['fixed_concs'][dataset_n]),
+                    num_points, max_time, integrate=True, calcs=True)
+    After)
+            _, boot_plot, _, boot_calcs = self.simulate(
+                    list(reg_info['boot_fit_ks'][n]) + reg_info['fixed_ks'],
+                    (list(reg_info['boot_fit_concs'][dataset_n][n])
+                     + reg_info['fixed_concs'][dataset_n]),
+                    smooth_ts_out,integrate=True, calcs=True)
+
+  11) Add words (line 990, 997 in KineticModel.py)
+    Before)
+
+    def simulate(self, ks, concs, num_points, max_time, integrate=False,
+                 calcs=False):
+        ~
+        smooth_ts_out, smooth_curves_out, integrals, calc_results = (
+                self.parent_model.simulate(
+                        ks, concs, num_points, max_time, integrate, calcs))
+    After)
+
+    def simulate(self, ks, concs, smooth_ts_out, integrate=False,
+                 calcs=False):
+        ~
+        smooth_ts_out, smooth_curves_out, integrals, calc_results = (
+                self.parent_model.simulate(
+                        ks, concs, smooth_ts_out, integrate, calcs))
+
+  12) Change word (lines 61~66 in fit_to_model.py)
+    Before)
+    smooth_ts_out, smooth_curves_out, integrals, calculations = model.simulate(
+            reg_info['fit_ks'] + reg_info['fixed_ks'],
+            reg_info['fit_concs'][ds_num] + reg_info['fixed_concs'][ds_num],
+            num_points,
+            time_exp_factor*max(reg_info['dataset_times'][ds_num]),
+            integrate=True, calcs=True)
+    After)
+    smooth_ts_out, smooth_curves_out, integrals, calculations = model.simulate(
+            reg_info['fit_ks'] + reg_info['fixed_ks'],
+            reg_info['fit_concs'][ds_num] + reg_info['fixed_concs'][ds_num],
+            reg_info['predicted_time'][ds_num],
+            integrate=True, calcs=True)
+
+  13) Add words (line 534 in fit_to_model.py)
+    Before)
+            generate_plot(model, reg_info, n, plot_output_points,
+                          plot_time_extension_factor, plot_filename,
+                          bootstrap_CI, common_y, plot_no_params, units)
+    After)
+            generate_plot(model, reg_info, n, plot_output_points,
+                          plot_time_extension_factor, plot_filename,
+                          bootstrap_CI, common_y, plot_no_params, units, plot_semilogx)
+
+  14) Change words (line 251 ~ 256 in fit_to_model.py)
+    Before)
+    max_time = max(reg_info['dataset_times'][ds_num])*time_exp_factor
+
+    smooth_ts_plot, smooth_curves_plot, _, _ = model.simulate(
+            reg_info['fit_ks'] + reg_info['fixed_ks'],
+            reg_info['fit_concs'][ds_num] + reg_info['fixed_concs'][ds_num],
+            num_points, max_time, integrate=False, calcs=False)
+    After)
+    smooth_ts_plot, smooth_curves_plot, _, _ = model.simulate(
+            reg_info['fit_ks'] + reg_info['fixed_ks'],
+            reg_info['fit_concs'][ds_num] + reg_info['fixed_concs'][ds_num],
+            reg_info['predicted_time'][ds_num], integrate=False, calcs=False)
+
+  15) Add words (line 240 in fit_to_model.py)
+    Before)
+def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
+                  output_filename, boot_CI=95, common_y=True, no_params=False,
+                  units=None):
+    After)
+def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
+                  output_filename, boot_CI=95, common_y=True, no_params=False,
+                  units=None, plot_semilogx=True):
+
+  15) Add lines (line 308 in fit_to_model.py)
+    Before)
+        else:
+            plt.ylabel(YLABEL)
+
+    if model.bottom_plot:
+    After)
+        else:
+            plt.ylabel(YLABEL)
+
+        if plot_semilogx:
+            plt.xscale("log")
+            if smooth_ts_plot[0]==0:
+                plt.xlim(xmin=smooth_ts_plot[1], xmax=smooth_ts_plot[-1])
+            else:
+                plt.xlim(xmin=smooth_ts_plot[0], xmax=smooth_ts_plot[-1])
+
+    if model.bottom_plot:
+
+  16) Add lines (line 357 in fit_to_model.py)
+    Before)
+            plt.ylabel(YLABEL)
+
+        # Print parameters on plot.
+    After)
+            plt.ylabel(YLABEL)
+
+        if plot_semilogx:
+            plt.xscale("log")
+            if smooth_ts_plot[0]==0:
+                plt.xlim(xmin=smooth_ts_plot[1], xmax=smooth_ts_plot[-1])
+            else:
+                plt.xlim(xmin=smooth_ts_plot[0], xmax=smooth_ts_plot[-1])
+
+        # Print parameters on plot.
+
+  17) Add words (line 540 ~ 553 in fit_to_model.py)
+    Before)
+            simulate_and_output(
+                    model=model.parent_model,
+                    ks=reg_info['fit_ks'] + reg_info['fixed_ks'],
+                    concs=(reg_info['fit_concs'][n]
+                           + reg_info['fixed_concs'][n]),
+                    time=(max(reg_info['dataset_times'][n])
+                          * text_time_extension_factor),
+                    text_num_points=text_output_points,
+                    plot_num_points=plot_output_points,
+                    filename=sim_filename,
+                    text_full_output=True,
+                    units=units,
+                    plot_time=(max(reg_info['dataset_times'][n])
+                               * plot_time_extension_factor))
+    After)
+            simulate_and_output(
+                    model=model.parent_model,
+                    ks=reg_info['fit_ks'] + reg_info['fixed_ks'],
+                    concs=(reg_info['fit_concs'][n]
+                           + reg_info['fixed_concs'][n]),
+                    time=reg_info['predicted_time'][n], # change input variable
+                    text_num_points=text_output_points,
+                    plot_num_points=plot_output_points,
+                    filename=sim_filename,
+                    text_full_output=True,
+                    units=units,
+                    plot_time=reg_info['predicted_time'][n]) # change input variable
+
+  18) Add words (line 46~51 in simulate_model.py)
+    Before)
+def prepare_text(model, ks, concs, time, num_points, full_output):
+    """Generates the output text.
+
+    """
+    sim_ts, sim_concs, integrals, calculations = model.simulate(
+            ks, concs, num_points, time, integrate=True, calcs=True)
+    After)
+def prepare_text(model, ks, concs, mintime, time, num_points, full_output):
+    """Generates the output text.
+
+    """
+    sim_ts, sim_concs, integrals, calculations = model.simulate(
+            ks, concs, time, integrate=True, calcs=True)
+
+  19) Add words (line 177~178 in simulate_model.py)
+    Before)
+    smooth_ts_plot, smooth_curves_plot, _, _ = model.simulate(
+            ks, concs, num_points, time, integrate=False, calcs=False)
+    After)
+    smooth_ts_plot, smooth_curves_plot, _, _ = model.simulate(
+            ks, concs, time, integrate=False, calcs=False)
+
+  20) Add words (line 255 in simulate_model.py)
+    Before)
+    if not plot_time:
+        plot_time = time
+
+    After)
+    if not plot_time.any():
+        plot_time = time
+
+  21) Change words (line 263 in KineticModel.py) ** I will works maybe... 
+    Before)
+                integrals.append(
+                        (self.int_eqn_desc[i],
+                         scipy.integrate.simps(integral_func, dx=deltaT)))
+    After)
+                integrals.append(
+                        (self.int_eqn_desc[i],
+                         scipy.integrate.simps(integral_func, smooth_ts_out)))
+
+  22) Comment lines (Line 60 ~ 66 in Dataset.py)
+    Before)
+                    if first_data_line:
+                        if float(curline[0]) != 0:
+                            # Append a t = 0 at the start.
+                            curr_ds_times.append(0)
+                            line_concs = []
+                            for n in range(model.num_data_concs):
+                                line_concs.append(np.nan)
+                            curr_ds_concs.append(line_concs)
+                        first_data_line = False
+                    curr_ds_times.append(float(curline[0]))
+    After)
+                    if first_data_line:
+                        """
+                        if float(curline[0]) != 0:
+                            # Append a t = 0 at the start.
+                            curr_ds_times.append(0)
+                            line_concs = []
+                            for n in range(model.num_data_concs):
+                                line_concs.append(np.nan)
+                            curr_ds_concs.append(line_concs)
+                        """
+                        first_data_line = False
+                    curr_ds_times.append(float(curline[0]))
+
+
+-------------------------------------------------------------------------------------------------------------------------------
+
+  : Debugging related to bound function
+  1) Add lines (new lines next to line 19 in KineticModel.py)
+    Before)
+import kinmodel.constants as constants
+
+INDIRECT_DESC_SPACER = "\n\nOriginal model:\n"
+
+    After)
+import kinmodel.constants as constants
+import copy
+
+INDIRECT_DESC_SPACER = "\n\nOriginal model:\n"
+
+  2) Add lines (new lines between line 223~225)
+    Before)
+        def num_calcs(self):
+            return len(self.calcs)
+
+        def simulate(self, ks, concs, num_points, max_time, integrate=False,
+
+	After)
+        def num_calcs(self):
+            return len(self.calcs)
+
+        def get_elements_of_nested_list(self,element):
+            count = 0
+            if isinstance(element, list):
+                for each_element in element:
+                    count += self.get_elements_of_nested_list(each_element)
+            else:
+                count += 1
+            return count
+
+      def simulate(self, ks, concs, num_points, max_time, integrate=False,
+
+  3) Add lines (between lines 536~538 in KineticModel.py)
+  Before)
+                const_params_ind = [p1_ind, p2_ind]
+
+                p_combos = [p for p in itertools.product(p1_vals, p2_vals)]
+  
+  After)  
+                const_params_ind = [p1_ind, p2_ind]
+                
+                bounds_del = copy.deepcopy(self.bounds)
+                if self.get_elements_of_nested_list(self.bounds) > 1: # bounds also should be deleted when bounds are specified
+                    for r in sorted([p1_ind, p2_ind], reverse=True):
+                        del bounds_del[0][r]
+                        del bounds_del[1][r]
+
+                p_combos = [p for p in itertools.product(p1_vals, p2_vals)]
+
+  4) Change lines (lines 853~904 in KineticModel.py)
+    Before)
+    def _bracket_param(self, param, low, high, num_iterations, cc_mult=2):
+        """Used to generated confidence contours. Returns the upper and
+        lower limits that should be used for a given value of param and
+        high and low CIs.
+        """
+        delta_high = high - param
+        delta_low = param - low
+        delta = cc_mult*max(delta_high, delta_low)
+
+        # We want the CCs to always include the actual optimized param,
+        # ideally in the center but offset if the parameter would be
+        # outside of the bounds. If an even number of iterations is
+        # specified, such that there is no exact center of the plot, the
+        # range favors the high end.
+
+        if ((param + delta) <= self.bounds[1] and
+                (param - delta) >= self.bounds[0]):
+            if num_iterations % 2 == 1:
+                interval = 2*delta/(num_iterations - 1)
+                bottom = param - (num_iterations-1)/2 * interval
+            else:
+                interval = 2*delta/num_iterations
+                bottom = param - (num_iterations/2 - 1) * interval
+        elif ((self.bounds[0] + 2*delta) <= self.bounds[1] and
+                (param - delta) < self.bounds[0]):
+            # Bounded on low end.
+            max_interval = 2*delta/(num_iterations - 1)
+            # Integer number of intervals to the actual param value.
+            n_to_p = math.ceil((param - self.bounds[0])/max_interval)
+            interval = (param - self.bounds[0])/n_to_p
+            bottom = self.bounds[0]
+        elif ((param + delta) > self.bounds[1] and
+                (self.bounds[1] - 2*delta) >= self.bounds[0]):
+            # Bounded on high end.
+            max_interval = 2*delta/(num_iterations - 1)
+            n_to_p = math.ceil((self.bounds[1] - param)/max_interval)
+            interval = (self.bounds[1] - param)/n_to_p
+            bottom = self.bounds[1] - (num_iterations-1)*interval
+        else:
+            # Bounded on both sides.
+            max_interval = (self.bounds[1] - self.bounds[0])/(num_iterations - 1)
+            n_to_p_low = (param - self.bounds[0])/max_interval
+            n_to_p_high = (self.bounds[1] - param)/max_interval
+            if (n_to_p_low % 1) < (n_to_p_high % 1):
+                n_to_p = math.ceil(n_to_p_low)
+            else:
+                n_to_p = math.floor(n_to_p_low)
+            interval = (param - self.bounds[0])/n_to_p
+            bottom = param - n_to_p*interval
+
+        assert ((bottom >= self.bounds[0])
+                and (bottom + interval*(num_iterations - 1)))
+    After)
+    def _bracket_param(self, param, low, high, num_iterations, ind, cc_mult=2):
+        """Used to generated confidence contours. Returns the upper and
+        lower limits that should be used for a given value of param and
+        high and low CIs.
+        """
+        delta_high = high - param
+        delta_low = param - low
+        delta = cc_mult*max(delta_high, delta_low)
+
+        # We want the CCs to always include the actual optimized param,
+        # ideally in the center but offset if the parameter would be
+        # outside of the bounds. If an even number of iterations is
+        # specified, such that there is no exact center of the plot, the
+        # range favors the high end.
+        if self.get_elements_of_nested_list(self.bounds) == 1:
+            ub = self.bounds[1]
+            lb = self.bounds[0]
+        else:
+            ub = self.bounds[1][ind]
+            lb = self.bounds[0][ind]
+
+        if ((param + delta) <= ub and
+                (param - delta) >= lb): # ideal case
+            print('Ideal case.')
+            if num_iterations % 2 == 1:
+                interval = 2*delta/(num_iterations - 1)
+                bottom = param - (num_iterations-1)/2 * interval
+            else:
+                interval = 2*delta/num_iterations
+                bottom = param - (num_iterations/2 - 1) * interval
+        elif ((lb + 2*delta) <= ub and
+                (param - delta) < lb):
+            # Bounded on low end.
+            print('Bounded on low end.')
+            max_interval = 2*delta/(num_iterations - 1)
+            # Integer number of intervals to the actual param value.
+            n_to_p = math.ceil((param - lb)/max_interval)
+            interval = (param - lb)/n_to_p
+            bottom = lb
+        elif ((param + delta) > ub and
+                (ub - 2*delta) >= lb):
+            # Bounded on high end.
+            print('Bounded on high end.')
+            max_interval = 2*delta/(num_iterations - 1)
+            n_to_p = math.ceil((ub - param)/max_interval)
+            interval = (ub - param)/n_to_p
+            bottom = ub - (num_iterations-1)*interval
+        else:
+            # Bounded on both sides.
+            print('Bounded on both side')
+            max_interval = (ub - lb)/(num_iterations - 1)
+            n_to_p_low = math.ceil((param - lb)/max_interval) # number of interval in lb ~ param
+            n_to_p_high = math.ceil((ub - param)/max_interval) # number of interval in param ~ ub
+            if n_to_p_low < n_to_p_high: # biased to lb
+                n_to_p = math.ceil(n_to_p_low)
+                interval = (param - lb)/n_to_p
+                bottom = lb
+            else: # biased to ub
+                n_to_p = math.ceil(n_to_p_high)
+                interval = (ub - param)/n_to_p
+                bottom = param - n_to_p*interval
+
+        assert ((bottom >= lb)
+                and (bottom + interval*(num_iterations - 1)) <= ub)
+	  
+  5) Add and replace words (line 480~486 in KineticModel.py)
+    Before)
+            (p1, p2), p1_ind, p2_ind, var_params, var_params_ind = inp
+            cc_results = scipy.optimize.least_squares(
+                    self._residual_fix, var_params,
+                    bounds=self.bounds,
+                    args=(var_params_ind, [p1, p2],
+                          const_params_ind, datasets,
+                          reg_info['parameter_constants'], False))
+    After)
+            (p1, p2), p1_ind, p2_ind, var_params, var_params_ind, bounds_del = inp
+            cc_results = scipy.optimize.least_squares(
+                    self._residual_fix, var_params,
+                    bounds=bounds_del,
+                    args=(var_params_ind, [p1, p2],
+                          const_params_ind, datasets,
+                          reg_info['parameter_constants'], False))
+
+  6) Add words (line 517~528 in KineticModel.py)
+    Before)
+                p1_vals = self._bracket_param(
+                        reg_info['all_params'][p1_ind],
+                        all_params_bot[p1_ind],
+                        all_params_top[p1_ind],
+                        num_intervals,
+                        cc_mult=cc_mult)
+                p2_vals = self._bracket_param(
+                        reg_info['all_params'][p2_ind],
+                        all_params_bot[p2_ind],
+                        all_params_top[p2_ind],
+                        num_intervals,
+                        cc_mult=cc_mult)
+    After)
+                p1_vals = self._bracket_param(
+                        reg_info['all_params'][p1_ind],
+                        all_params_bot[p1_ind],
+                        all_params_top[p1_ind],
+                        num_intervals,
+                        p1_ind,
+                        cc_mult=cc_mult)
+                p2_vals = self._bracket_param(
+                        reg_info['all_params'][p2_ind],
+                        all_params_bot[p2_ind],
+                        all_params_top[p2_ind],
+                        num_intervals,
+                        p2_ind,
+                        cc_mult=cc_mult)
+
+  7) Insert words (line 547, 554 in KineticModel.py)
+    Before)
+                if monitor:
+                    print(f"Confidence contours for "
+                          f"{all_parameter_names[p1_ind]} and "
+                          f"{all_parameter_names[p2_ind]}:")
+                    cc_results = Parallel(n_jobs=nodes)(
+                            delayed(_results)((ps, p1_ind, p2_ind, var_params,
+                                           var_params_ind)) for ps in tqdm(p_combos))
+                    results.append([(all_parameter_names[p1_ind],
+                                     all_parameter_names[p2_ind]),
+                                     cc_results])
+                else:
+                    cc_results = Parallel(n_jobs=nodes)(
+                            delayed(_results)((ps, p1_ind, p2_ind, var_params,
+                                           var_params_ind)) for ps in p_combos)
+                    results.append([(all_parameter_names[p1_ind],
+                                     all_parameter_names[p2_ind]),
+                                     cc_results])
+
+    After)
+                if monitor:
+                    print(f"Confidence contours for "
+                          f"{all_parameter_names[p1_ind]} and "
+                          f"{all_parameter_names[p2_ind]}:")
+                    cc_results = Parallel(n_jobs=nodes)(
+                            delayed(_results)((ps, p1_ind, p2_ind, var_params,
+                                           var_params_ind, bounds_del)) for ps in tqdm(p_combos))
+                    results.append([(all_parameter_names[p1_ind],
+                                     all_parameter_names[p2_ind]),
+                                     cc_results])
+                else:
+                    cc_results = Parallel(n_jobs=nodes)(
+                            delayed(_results)((ps, p1_ind, p2_ind, var_params,
+                                           var_params_ind, bounds_del)) for ps in p_combos)
+                    results.append([(all_parameter_names[p1_ind],
+                                     all_parameter_names[p2_ind]),
+                                     cc_results])

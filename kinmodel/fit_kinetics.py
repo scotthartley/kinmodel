@@ -2,6 +2,8 @@
 """Executable script to interface with modules in the kinmodel
 package for experimental data fitting.
 
+** Modified by Gyunam Park 24.03.12
+
 """
 import textwrap
 import argparse
@@ -47,19 +49,19 @@ def fit_kinetics():
     parser.add_argument(
         "-ks", "--fixed_ks",
         help="Fixed k's and K's for model (will not be optimized).",
-        nargs="+", type=float)
+        nargs="+", type=float, action = 'append') # New code
     parser.add_argument(
         "-cs", "--fixed_cs",
         help="Fixed concentrations for model (will not be optimized).",
-        nargs="+", type=float)
+        nargs="+", type=float, action = 'append') # New code
     parser.add_argument(
         "-kg", "--k_guesses",
         help="Override guesses for k's and K's.",
-        nargs="+", type=float)
+        nargs="+", type=float, action = 'append') # New code
     parser.add_argument(
         "-cg", "--c_guesses",
         help="Override guesses for concentrations.",
-        nargs="+", type=float)
+        nargs="+", type=float, action = 'append') # New code
     parser.add_argument(
         "-w", "--weight_min_conc",
         help=("Triggers weighted regression relative to the concentration, "
@@ -164,6 +166,10 @@ def fit_kinetics():
         help=("Load reg_info from previous optimization; original model must "
               "be specified"),
         action='store_true')
+    parser.add_argument(
+        "-log","--semilog_x",
+        help=("For semilog x plotting"),
+        action='store_true') # New code
     args = parser.parse_args()
 
     model = kinmodel.KineticModel.get_model(args.model_name, all_models)
@@ -173,6 +179,11 @@ def fit_kinetics():
         model.description += ("\n\nErrors are weighted by 1/conc, with a "
                               f"min conc of {args.weight_min_conc}")
         model.name += f"_re{args.weight_min_conc}"
+
+    args.fixed_ks=sum(args.fixed_ks, []) if args.fixed_ks else None # New code
+    args.fixed_cs=sum(args.fixed_cs, []) if args.fixed_cs else None # New code
+    args.k_guesses=sum(args.k_guesses, []) if args.k_guesses else None # New code
+    args.c_guesses=sum(args.c_guesses, []) if args.c_guesses else None # New code
 
     fixed_ks = args.fixed_ks if args.fixed_ks else None
     fixed_cs = args.fixed_cs if args.fixed_cs else None
@@ -207,4 +218,5 @@ def fit_kinetics():
             units=args.units,
             simulate=not args.no_simulate_direct,
             load_reg_info=args.load_reg_info,
+            plot_semilogx=args.semilog_x # New code
             )

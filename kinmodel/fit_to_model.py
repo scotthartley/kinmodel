@@ -1,6 +1,8 @@
 """Interfaces with the KineticModel class to fit experimental data to a
 given kinetic model and output the results.
 
+** Modified by Gyunam Park 24.02.28
+
 """
 import platform
 import numpy as np
@@ -49,7 +51,7 @@ np.set_printoptions(linewidth=np.nan)
 np.set_printoptions(precision=2, suppress=True)
 
 
-def prepare_text(
+def prepare_text(    
         model, reg_info, ds_num, num_points, time_exp_factor, filename="",
         full_simulation=True, more_stats=False):
     """Generates the output text.
@@ -61,8 +63,7 @@ def prepare_text(
     smooth_ts_out, smooth_curves_out, integrals, calculations = model.simulate(
             reg_info['fit_ks'] + reg_info['fixed_ks'],
             reg_info['fit_concs'][ds_num] + reg_info['fixed_concs'][ds_num],
-            num_points,
-            time_exp_factor*max(reg_info['dataset_times'][ds_num]),
+            reg_info['predicted_time'][ds_num], # change argument
             integrate=True, calcs=True)
 
     num_ks = len(reg_info['fit_ks'])
@@ -237,7 +238,7 @@ def prepare_text(
 
 def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
                   output_filename, boot_CI=95, common_y=True, no_params=False,
-                  units=None):
+                  units=None, plot_semilogx=True):
     """Generates the output plot.
 
     Number of points must be specified. Saved as pdf to output_filename.
@@ -248,12 +249,11 @@ def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
     dataset_params = reg_info['fit_ks'] + reg_info['fit_concs'][ds_num]
     dataset_consts = reg_info['fixed_ks'] + reg_info['fixed_concs'][ds_num]
 
-    max_time = max(reg_info['dataset_times'][ds_num])*time_exp_factor
-
+    # delete and change argument
     smooth_ts_plot, smooth_curves_plot, _, _ = model.simulate(
             reg_info['fit_ks'] + reg_info['fixed_ks'],
             reg_info['fit_concs'][ds_num] + reg_info['fixed_concs'][ds_num],
-            num_points, max_time, integrate=False, calcs=False)
+            reg_info['predicted_time'][ds_num], integrate=False, calcs=False)
 
     if 'boot_num' in reg_info and boot_CI:
         boot_CI_plots = reg_info['boot_plot_CIs'][ds_num]
@@ -305,7 +305,14 @@ def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
         if units:
             plt.ylabel(f"{YLABEL} ({units[1]})")
         else:
-            plt.ylabel(YLABEL)
+            plt.ylabel(YLABEL)     
+
+        if plot_semilogx:
+            plt.xscale("log")
+            if smooth_ts_plot[0]==0:
+                plt.xlim(xmin=smooth_ts_plot[1], xmax=smooth_ts_plot[-1])
+            else:
+                plt.xlim(xmin=smooth_ts_plot[0], xmax=smooth_ts_plot[-1])
 
     if model.bottom_plot:
         if model.top_plot:
@@ -354,6 +361,13 @@ def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
         else:
             plt.xlabel(XLABEL)
             plt.ylabel(YLABEL)
+        
+        if plot_semilogx:
+            plt.xscale("log")
+            if smooth_ts_plot[0]==0:
+                plt.xlim(xmin=smooth_ts_plot[1], xmax=smooth_ts_plot[-1])
+            else:
+                plt.xlim(xmin=smooth_ts_plot[0], xmax=smooth_ts_plot[-1])
 
         # Print parameters on plot.
         if not no_params:
@@ -466,7 +480,8 @@ def fit_and_output(
             units=None,
             simulate=True,
             calcs=True,
-            load_reg_info=False):
+            load_reg_info=False,
+            plot_semilogx=True): # New code
     """Carry out the fit of the model and output the data.
 
     """
@@ -488,7 +503,8 @@ def fit_and_output(
                 boot_nodes=bootstrap_nodes,
                 cc_ints=confidence_contour_intervals,
                 cc_mult=confidence_contour_multiplier,
-                cc_include_cs=confidence_contour_cs)
+                cc_include_cs=confidence_contour_cs,
+                plot_semilogx=plot_semilogx) # New code
 
         file_suffix = ""
         if bootstrap_force1st:
@@ -531,7 +547,7 @@ def fit_and_output(
                              f"_{reg_info['dataset_names'][n]}.pdf")
             generate_plot(model, reg_info, n, plot_output_points,
                           plot_time_extension_factor, plot_filename,
-                          bootstrap_CI, common_y, plot_no_params, units)
+                          bootstrap_CI, common_y, plot_no_params, units, plot_semilogx) # add argument
 
     if (type(model) is IndirectKineticModel) and simulate:
         for n in range(reg_info['num_datasets']):
@@ -542,15 +558,13 @@ def fit_and_output(
                     ks=reg_info['fit_ks'] + reg_info['fixed_ks'],
                     concs=(reg_info['fit_concs'][n]
                            + reg_info['fixed_concs'][n]),
-                    time=(max(reg_info['dataset_times'][n])
-                          * text_time_extension_factor),
+                    time=reg_info['predicted_time'][n], # change input variable
                     text_num_points=text_output_points,
                     plot_num_points=plot_output_points,
                     filename=sim_filename,
                     text_full_output=True,
                     units=units,
-                    plot_time=(max(reg_info['dataset_times'][n])
-                               * plot_time_extension_factor))
+                    plot_time=reg_info['predicted_time'][n]) # change input variable
 
     if confidence_contour_intervals:
         base_cc_filename = base_filename + "_cc"

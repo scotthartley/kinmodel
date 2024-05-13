@@ -3,6 +3,9 @@
 This class is used for kinetic models that can be fit to experimental
 data or simulated with a given set of parameters.
 
+
+** Modified by Gyunam Park 24.02.28
+
 """
 import sys
 import os
@@ -17,6 +20,7 @@ from tqdm import tqdm
 from .Dataset import Dataset
 import yaml
 import kinmodel.constants as constants
+import copy
 
 INDIRECT_DESC_SPACER = "\n\nOriginal model:\n"
 INT_LAMBDA = "lambda c, k: "
@@ -222,7 +226,16 @@ class KineticModel:
     def num_calcs(self):
         return len(self.calcs)
 
-    def simulate(self, ks, concs, num_points, max_time, integrate=False,
+    def get_elements_of_nested_list(self,element): # new definition
+        count = 0
+        if isinstance(element, list):
+            for each_element in element:
+                count += self.get_elements_of_nested_list(each_element)
+        else:
+            count += 1
+        return count
+
+    def simulate(self, ks, concs, smooth_ts_out, integrate=False, # argument change
                  calcs=False):
         """Using _solved_kin_sys, solves the system of diff. equations
         for a given number of points, maximum time, and with optional
@@ -232,8 +245,8 @@ class KineticModel:
         all possible values.
 
         """
-        smooth_ts_out, deltaT = np.linspace(0, max_time, num_points,
-                                            retstep=True)
+        #smooth_ts_out, deltaT = np.linspace(0, max_time, num_points, #comment this line
+        #                                    retstep=True)        
 
         if len(ks) == self.num_var_ks:
             all_ks = np.append(ks, self.ks_constant)
@@ -260,7 +273,7 @@ class KineticModel:
                     integral_func.append(self.int_eqn[i](cs, all_ks))
                 integrals.append(
                         (self.int_eqn_desc[i],
-                         scipy.integrate.simps(integral_func, dx=deltaT)))
+                         scipy.integrate.simps(integral_func, smooth_ts_out)))
         else:
             integrals = None
 
@@ -284,7 +297,7 @@ class KineticModel:
                      conc0_const=None, N_boot=0, monitor=False,
                      boot_CI=95, boot_points=1000, boot_t_exp=1.1,
                      boot_force1st=False, boot_nodes=-1,
-                     cc_ints=10, cc_mult=3.0, cc_include_cs=False):
+                     cc_ints=10, cc_mult=3.0, cc_include_cs=False, plot_semilogx=True): # New word
         """Performs a fit to a set of datasets containing time and
         concentration data.
 
@@ -341,7 +354,7 @@ class KineticModel:
                         "Invalid number of concentrations specified."))
         else:
             parameter_constants += self.conc0_constant*num_datasets
-
+        
         results = scipy.optimize.least_squares(
                 self._residual, parameter_guesses, bounds=self.bounds,
                 args=(datasets, parameter_constants, False))
@@ -363,6 +376,7 @@ class KineticModel:
 
         reg_info['all_params'] = results['x']
         reg_info['fit_ks'] = list(results['x'][:self.num_var_ks])
+        print(reg_info['fit_ks'])
         fit_concs = list(results['x'][self.num_var_ks:])
         reg_info['fit_concs'] = []
         for n in range(num_datasets):
@@ -377,11 +391,22 @@ class KineticModel:
                     self._dataset_concs(n, fixed_concs, self.num_const_concs0))
 
         reg_info['predicted_data'] = []
+        reg_info['predicted_time'] = [] # new line
         for d in range(num_datasets):
+            if plot_semilogx:
+                if datasets[d].min_time == 0:                     
+                    predicted_time = np.concatenate((np.zeros(1,),np.logspace(np.log10(datasets[d].second_time), np.log10(datasets[d].max_time), boot_points-1)),axis=0)
+                else:
+                    predicted_time = np.logspace(np.log10(datasets[d].min_time), np.log10(datasets[d].max_time), boot_points)
+
+            else:                    
+                predicted_time = np.linspace(datasets[d].min_time, datasets[d].max_time, boot_points)
+
+            reg_info['predicted_time'].append(predicted_time)
             reg_info['predicted_data'].append(self._solved_kin_sys(
                     reg_info['fit_concs'][d] + reg_info['fixed_concs'][d],
                     reg_info['fit_ks'] + reg_info['fixed_ks'],
-                    reg_info['dataset_times'][d]))
+                    predicted_time))
 
         max_pred_concs = [0]*self.num_data_concs
         for d in reg_info['predicted_data']:
@@ -477,10 +502,10 @@ class KineticModel:
         def _results(inp):
             """Reformats _residual_fix for parallel processing.
             """
-            (p1, p2), p1_ind, p2_ind, var_params, var_params_ind = inp
+            (p1, p2), p1_ind, p2_ind, var_params, var_params_ind, bounds_del = inp # change line
             cc_results = scipy.optimize.least_squares(
                     self._residual_fix, var_params,
-                    bounds=self.bounds,
+                    bounds=bounds_del, # change argument
                     args=(var_params_ind, [p1, p2],
                           const_params_ind, datasets,
                           reg_info['parameter_constants'], False))
@@ -519,12 +544,14 @@ class KineticModel:
                         all_params_bot[p1_ind],
                         all_params_top[p1_ind],
                         num_intervals,
+                        p1_ind, # add argument
                         cc_mult=cc_mult)
                 p2_vals = self._bracket_param(
                         reg_info['all_params'][p2_ind],
                         all_params_bot[p2_ind],
                         all_params_top[p2_ind],
                         num_intervals,
+                        p2_ind, # add argument
                         cc_mult=cc_mult)
 
                 var_params = list(reg_info['all_params'])
@@ -535,6 +562,13 @@ class KineticModel:
                     del var_params_ind[r]
                 const_params_ind = [p1_ind, p2_ind]
 
+                # add lines
+                bounds_del = copy.deepcopy(self.bounds) 
+                if self.get_elements_of_nested_list(self.bounds) > 1: # bounds also should be deleted when bounds are specified
+                    for r in sorted([p1_ind, p2_ind], reverse=True):
+                        del bounds_del[0][r]
+                        del bounds_del[1][r]
+
                 p_combos = [p for p in itertools.product(p1_vals, p2_vals)]
                 total_p_combos = len(p_combos)
 
@@ -544,14 +578,14 @@ class KineticModel:
                           f"{all_parameter_names[p2_ind]}:")
                     cc_results = Parallel(n_jobs=nodes)(
                             delayed(_results)((ps, p1_ind, p2_ind, var_params,
-                                           var_params_ind)) for ps in tqdm(p_combos))
+                                           var_params_ind, bounds_del)) for ps in tqdm(p_combos)) # change argument
                     results.append([(all_parameter_names[p1_ind],
                                      all_parameter_names[p2_ind]),
                                      cc_results])
                 else:
                     cc_results = Parallel(n_jobs=nodes)(
                             delayed(_results)((ps, p1_ind, p2_ind, var_params,
-                                           var_params_ind)) for ps in p_combos)
+                                           var_params_ind,bounds_del)) for ps in p_combos) # change argument
                     results.append([(all_parameter_names[p1_ind],
                                      all_parameter_names[p2_ind]),
                                      cc_results])
@@ -640,8 +674,7 @@ class KineticModel:
         """Returns upper and lower confidence intervals for bootstrapped
         statistics, as an ndarray.
         """
-        max_time = max(reg_info['dataset_times'][dataset_n])*time_exp_factor
-        smooth_ts_out, _ = np.linspace(0, max_time, num_points, retstep=True)
+        smooth_ts_out = reg_info['predicted_time'][dataset_n]
 
         boot_iterations = reg_info['boot_num']
         CI_num = math.ceil(boot_iterations*(100-CI)/200)
@@ -659,7 +692,7 @@ class KineticModel:
                     list(reg_info['boot_fit_ks'][n]) + reg_info['fixed_ks'],
                     (list(reg_info['boot_fit_concs'][dataset_n][n])
                      + reg_info['fixed_concs'][dataset_n]),
-                    num_points, max_time, integrate=True, calcs=True)
+                    smooth_ts_out, integrate=True, calcs=True) # chagne line
             if (n+1) <= CI_num:
                 plot_topCI = np.append(plot_topCI, [boot_plot], axis=0)
                 plot_topCI = np.sort(plot_topCI, axis=0)
@@ -850,7 +883,7 @@ class KineticModel:
             print(", ".join(a for a in all_models), "are currently available.")
             sys.exit(1)
 
-    def _bracket_param(self, param, low, high, num_iterations, cc_mult=2):
+    def _bracket_param(self, param, low, high, num_iterations, ind, cc_mult=2):
         """Used to generated confidence contours. Returns the upper and
         lower limits that should be used for a given value of param and
         high and low CIs.
@@ -865,43 +898,52 @@ class KineticModel:
         # specified, such that there is no exact center of the plot, the
         # range favors the high end.
 
-        if ((param + delta) <= self.bounds[1] and
-                (param - delta) >= self.bounds[0]):
+        if self.get_elements_of_nested_list(self.bounds) == 1:
+            ub = self.bounds[1]
+            lb = self.bounds[0]
+        else:
+            ub = self.bounds[1][ind]
+            lb = self.bounds[0][ind]
+
+        if ((param + delta) <= ub and
+                (param - delta) >= lb): # ideal case
             if num_iterations % 2 == 1:
                 interval = 2*delta/(num_iterations - 1)
                 bottom = param - (num_iterations-1)/2 * interval
             else:
                 interval = 2*delta/num_iterations
                 bottom = param - (num_iterations/2 - 1) * interval
-        elif ((self.bounds[0] + 2*delta) <= self.bounds[1] and
-                (param - delta) < self.bounds[0]):
+        elif ((lb + 2*delta) <= ub and
+                (param - delta) < lb):
             # Bounded on low end.
             max_interval = 2*delta/(num_iterations - 1)
             # Integer number of intervals to the actual param value.
-            n_to_p = math.ceil((param - self.bounds[0])/max_interval)
-            interval = (param - self.bounds[0])/n_to_p
-            bottom = self.bounds[0]
-        elif ((param + delta) > self.bounds[1] and
-                (self.bounds[1] - 2*delta) >= self.bounds[0]):
+            n_to_p = math.ceil((param - lb)/max_interval)
+            interval = (param - lb)/n_to_p
+            bottom = lb
+        elif ((param + delta) > ub and
+                (ub - 2*delta) >= lb):
             # Bounded on high end.
             max_interval = 2*delta/(num_iterations - 1)
-            n_to_p = math.ceil((self.bounds[1] - param)/max_interval)
-            interval = (self.bounds[1] - param)/n_to_p
-            bottom = self.bounds[1] - (num_iterations-1)*interval
+            n_to_p = math.ceil((ub - param)/max_interval)
+            interval = (ub - param)/n_to_p
+            bottom = ub - (num_iterations-1)*interval
         else:
             # Bounded on both sides.
-            max_interval = (self.bounds[1] - self.bounds[0])/(num_iterations - 1)
-            n_to_p_low = (param - self.bounds[0])/max_interval
-            n_to_p_high = (self.bounds[1] - param)/max_interval
-            if (n_to_p_low % 1) < (n_to_p_high % 1):
+            max_interval = (ub - lb)/(num_iterations - 1)
+            n_to_p_low = math.ceil((param - lb)/max_interval) # number of interval in lb ~ param
+            n_to_p_high = math.ceil((ub - param)/max_interval) # number of interval in param ~ ub
+            if n_to_p_low < n_to_p_high: # biased to lb
                 n_to_p = math.ceil(n_to_p_low)
-            else:
-                n_to_p = math.floor(n_to_p_low)
-            interval = (param - self.bounds[0])/n_to_p
-            bottom = param - n_to_p*interval
+                interval = (param - lb)/n_to_p
+                bottom = lb
+            else: # biased to ub
+                n_to_p = math.ceil(n_to_p_high)
+                interval = (ub - param)/n_to_p
+                bottom = param - n_to_p*interval
 
-        assert ((bottom >= self.bounds[0])
-                and (bottom + interval*(num_iterations - 1)))
+        assert ((bottom >= lb)
+                and (bottom + interval*(num_iterations - 1)) <= ub)
 
         return [bottom + i*interval for i in range(num_iterations)]
 
@@ -987,14 +1029,14 @@ class IndirectKineticModel(KineticModel):
 
         return self.conc_mapping(parent_model_soln.transpose())
 
-    def simulate(self, ks, concs, num_points, max_time, integrate=False,
+    def simulate(self, ks, concs, smooth_ts_out, integrate=False,
                  calcs=False):
         """Overriding the simulate function in this way allows calculations
         from the parent model to be executed.
         """
         smooth_ts_out, smooth_curves_out, integrals, calc_results = (
                 self.parent_model.simulate(
-                        ks, concs, num_points, max_time, integrate, calcs))
+                        ks, concs, smooth_ts_out, integrate, calcs))
 
         return (smooth_ts_out,
                 self.conc_mapping(smooth_curves_out.transpose()),

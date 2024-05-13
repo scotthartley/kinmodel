@@ -1,6 +1,8 @@
 """Interfaces with the KineticModel class to simulate conc vs time data
 and output the results.
 
+** Modified by Gyunam Park 24.02.28
+
 """
 import platform
 import numpy as np
@@ -48,7 +50,7 @@ def prepare_text(model, ks, concs, time, num_points, full_output):
 
     """
     sim_ts, sim_concs, integrals, calculations = model.simulate(
-            ks, concs, num_points, time, integrate=True, calcs=True)
+            ks, concs, time, integrate=True, calcs=True) # change argument
 
     all_ks, all_concs = _resolve_parameters(model, ks, concs)
 
@@ -175,7 +177,7 @@ def generate_plot(model, ks, concs, time, num_points, output_filename,
     rcParams.update(PLT_PARAMS)
 
     smooth_ts_plot, smooth_curves_plot, _, _ = model.simulate(
-            ks, concs, num_points, time, integrate=False, calcs=False)
+            ks, concs, time, integrate=False, calcs=False) # change argument
 
     all_ks, all_concs = _resolve_parameters(model, ks, concs)
 
@@ -252,7 +254,7 @@ def simulate_and_output(model, ks, concs, time, text_num_points,
 
     """
 
-    if not plot_time:
+    if not plot_time.any():
         plot_time = time
 
     if text_num_points:

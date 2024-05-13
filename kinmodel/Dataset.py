@@ -1,5 +1,7 @@
 """Defines the Dataset class.
 
+** Modified by Gyunam Park 24.03.12
+
 """
 import string
 import numpy as np
@@ -22,6 +24,14 @@ class Dataset:
     @property
     def max_time(self):
         return max(self.times)
+
+    @property # new code
+    def min_time(self):
+        return self.times[0]
+
+    @property # new code
+    def second_time(self):
+        return self.times[1]
 
     @classmethod
     def read_raw_data(cls, model, data_filename) -> ['Dataset']:
@@ -57,6 +67,8 @@ class Dataset:
                 if _is_number(curline[0]):
                     # Line contains data
                     if first_data_line:
+                        # New code: Comment this paragraph
+                        """ 
                         if float(curline[0]) != 0:
                             # Append a t = 0 at the start.
                             curr_ds_times.append(0)
@@ -64,6 +76,7 @@ class Dataset:
                             for n in range(model.num_data_concs):
                                 line_concs.append(np.nan)
                             curr_ds_concs.append(line_concs)
+                        """ 
                         first_data_line = False
                     curr_ds_times.append(float(curline[0]))
                     line_concs = []

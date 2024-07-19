@@ -478,13 +478,22 @@ class KineticModel:
             """Reformats _residual_fix for parallel processing.
             """
             (p1, p2), p1_ind, p2_ind, var_params, var_params_ind = inp
-            cc_results = scipy.optimize.least_squares(
-                    self._residual_fix, var_params,
-                    bounds=self.bounds,
-                    args=(var_params_ind, [p1, p2],
-                          const_params_ind, datasets,
-                          reg_info['parameter_constants'], False))
-            ssr = cc_results.cost * 2
+            if len(var_params) > 0:
+                cc_results = scipy.optimize.least_squares(
+                        self._residual_fix, var_params,
+                        bounds=self.bounds,
+                        args=(var_params_ind, [p1, p2],
+                              const_params_ind, datasets,
+                              reg_info['parameter_constants'], False))
+                ssr = cc_results.cost * 2
+            else:
+            # Accounts for the case where there were only two parameters to
+            # begin with, thus there is actually nothing to optimize when
+            # calculating the confidence contours. Just need to return the ssr.
+                residuals = self._residual_fix([], [], [p1, p2],
+                        const_params_ind, datasets,
+                        reg_info['parameter_constants'], False)
+                ssr = sum(r**2 for r in residuals)
             return p1, p2, ssr
 
         ks_bot = list(reg_info['boot_param_CIs'][0][0][0])

@@ -87,6 +87,11 @@ def fit_kinetics():
               "(default=all)"),
         type=int, default=-1)
     parser.add_argument(
+        "-cpp", "--confidence_plot_points",
+        help=("Number of points to use per standard error in generating "
+              "confidence plots (SSR vs value) for parameters (default=None)"),
+        type=int, default=None)
+    parser.add_argument(
         "-cci", "--confidence_contour_intervals",
         help=("Number of intervals to be used in generating confidence "
               "contour plots for pairs of parameters (default=None)"),
@@ -197,6 +202,7 @@ def fit_kinetics():
             bootstrap_nodes=args.bootstrap_nodes,
             bootstrap_CI=args.confidence_interval,
             bootstrap_force1st=args.bootstrap_force1st,
+            confidence_plot_points=args.confidence_plot_points,
             confidence_contour_intervals=args.confidence_contour_intervals,
             confidence_contour_multiplier=args.confidence_contour_multiplier,
             confidence_contour_cs=args.confidence_contour_concs,

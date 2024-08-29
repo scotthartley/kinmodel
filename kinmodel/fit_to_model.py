@@ -456,6 +456,7 @@ def fit_and_output(
             bootstrap_CI=95,
             bootstrap_force1st=False,
             bootstrap_nodes=None,
+            confidence_plot_points=None,
             confidence_contour_intervals=None,
             confidence_contour_multiplier=3.0,
             confidence_contour_cs=False,
@@ -486,6 +487,7 @@ def fit_and_output(
                 boot_t_exp=text_time_extension_factor,
                 boot_force1st=bootstrap_force1st,
                 boot_nodes=bootstrap_nodes,
+                cp_points = confidence_plot_points,
                 cc_ints=confidence_contour_intervals,
                 cc_mult=confidence_contour_multiplier,
                 cc_include_cs=confidence_contour_cs)

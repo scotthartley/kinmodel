@@ -283,7 +283,7 @@ class KineticModel:
                      conc0_guesses=None, ks_const=None,
                      conc0_const=None, N_boot=0, monitor=False,
                      boot_CI=95, boot_points=1000, boot_t_exp=1.1,
-                     boot_force1st=False, boot_nodes=-1,
+                     boot_force1st=False, boot_nodes=-1, cp_points=4,
                      cc_ints=10, cc_mult=3.0, cc_include_cs=False):
         """Performs a fit to a set of datasets containing time and
         concentration data.
@@ -456,6 +456,10 @@ class KineticModel:
                 reg_info['boot_plot_CIs'].append(b[2])
                 reg_info['boot_calc_CIs'].append(b[3])
                 reg_info['boot_plot_ts'].append(b[4])
+
+            if cp_points:
+                reg_info['conf_plots'] = self.confidence_plot(reg_info,
+                        datasets, num_datasets, cp_points)
 
             if cc_ints:
                 reg_info['conf_contours'] = self.confidence_contours(
@@ -711,6 +715,9 @@ class KineticModel:
         return ((plot_topCI[0], plot_botCI[-1]),
                 (calc_top_cutoffs, calc_bot_cutoffs),
                 smooth_ts_out)
+
+    def confidence_plot(self, reg_info, datasets, num_datasets, cp_points):
+        return []
 
     def _solved_kin_sys(self, conc0, ks, times):
         """Solves the system of differential equations for given values

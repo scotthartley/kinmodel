@@ -458,8 +458,8 @@ class KineticModel:
                 reg_info['boot_plot_ts'].append(b[4])
 
             if cp_points:
-                reg_info['conf_plots'] = self.confidence_plot(reg_info,
-                        datasets, num_datasets, cp_points)
+                reg_info['conf_plots'] = self.confidence_plots(reg_info,
+                        datasets, num_datasets, cp_points, monitor)
 
             if cc_ints:
                 reg_info['conf_contours'] = self.confidence_contours(
@@ -716,8 +716,69 @@ class KineticModel:
                 (calc_top_cutoffs, calc_bot_cutoffs),
                 smooth_ts_out)
 
-    def confidence_plot(self, reg_info, datasets, num_datasets, cp_points):
-        return []
+    @staticmethod
+    def flatten_concs(concs):
+        """Given a list of lists (or related), flattens the list. Useful
+        for the lists of lists of optimized concentrations.
+        """
+
+        return [n for p in concs for n in p]
+
+    def confidence_plots(self, reg_info, datasets, num_datasets, cp_points,
+                         monitor=False):
+        """Generates confidence plots, plots of the SSR as a function of
+        variation in each parameter.
+
+        Returns a list of lists of tuples of the values and the SSRs.
+        """
+
+        # Get all parameters and CIs from reg_info.
+        # Need to flatten the lists of concentrations.
+        params = reg_info['fit_ks'] + self.flatten_concs(reg_info['fit_concs'])
+        params_bot = (list(reg_info['boot_param_CIs'][0][0][0])
+                + self.flatten_concs([reg_info['boot_param_CIs'][n][1][0]
+                        for n in range(len(datasets))]))
+        params_top = (list(reg_info['boot_param_CIs'][0][0][1])
+                + self.flatten_concs([reg_info['boot_param_CIs'][n][1][1]
+                        for n in range(len(datasets))]))
+
+        output = []
+        # Iterate over each parameter, fixing each and optimizing the
+        # others to determine the confidence plot.
+        if monitor: print("Confidence plots:")
+        for par_num in tqdm(range(len(params)), disable=not monitor):
+            # print(f"Parameter {par_num + 1} of {len(params)}")
+            # Isolate the current parameter from the overall list.
+            curr_par = params[par_num]
+            other_pars = params.copy()
+            other_pars_ind = list(range(len(params)))
+            del other_pars[par_num]
+            del other_pars_ind[par_num]
+
+            # Determine the set of values to be considered for the
+            # isolated parameter.
+            int_bot = (curr_par - params_bot[par_num])/cp_points
+            int_top = (params_top[par_num] - curr_par)/cp_points
+
+            # Will need to handle case where parameter dips below zero, probably.
+            new_pars = ([curr_par]
+                         + [curr_par - int_bot*(n+1) for n in range(cp_points)]
+                         + [curr_par + int_top*(n+1) for n in range(cp_points)])
+            # print(new_pars)
+
+            par_var_results = []
+            for new_par in tqdm(new_pars, disable=not monitor, leave=False):
+                fit_results = scipy.optimize.least_squares(
+                        self._residual_fix, other_pars,
+                        bounds=self.bounds,
+                        args=(other_pars_ind, [new_par],
+                              [par_num], datasets,
+                              reg_info['parameter_constants'], False))
+                ssr = fit_results.cost * 2
+                par_var_results.append((new_par, ssr))
+            output.append(par_var_results)
+
+        return output
 
     def _solved_kin_sys(self, conc0, ks, times):
         """Solves the system of differential equations for given values

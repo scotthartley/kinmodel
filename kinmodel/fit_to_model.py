@@ -467,6 +467,8 @@ def fit_and_output(
             bootstrap_force1st=False,
             bootstrap_nodes=None,
             confidence_plot_points=None,
+            confidence_plot_threshold=10.0,
+            confidence_plot_max_mult=5.0,
             confidence_contour_intervals=None,
             confidence_contour_multiplier=3.0,
             confidence_contour_cs=False,
@@ -498,6 +500,8 @@ def fit_and_output(
                 boot_force1st=bootstrap_force1st,
                 boot_nodes=bootstrap_nodes,
                 cp_points = confidence_plot_points,
+                cp_threshold = confidence_plot_threshold,
+                cp_max_mult = confidence_plot_max_mult,
                 cc_ints=confidence_contour_intervals,
                 cc_mult=confidence_contour_multiplier,
                 cc_include_cs=confidence_contour_cs)

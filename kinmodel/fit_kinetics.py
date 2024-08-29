@@ -46,26 +46,26 @@ def fit_kinetics():
         help="CSV file to process")
     parser.add_argument(
         "-ks", "--fixed_ks",
-        help="Fixed k's and K's for model (will not be optimized).",
+        help="Fixed k's and K's for model (will not be optimized)",
         nargs="+", type=float)
     parser.add_argument(
         "-cs", "--fixed_cs",
-        help="Fixed concentrations for model (will not be optimized).",
+        help="Fixed concentrations for model (will not be optimized)",
         nargs="+", type=float)
     parser.add_argument(
         "-kg", "--k_guesses",
-        help="Override guesses for k's and K's.",
+        help="Override guesses for k's and K's",
         nargs="+", type=float)
     parser.add_argument(
         "-cg", "--c_guesses",
-        help="Override guesses for concentrations.",
+        help="Override guesses for concentrations",
         nargs="+", type=float)
     parser.add_argument(
         "-w", "--weight_min_conc",
         help=("Triggers weighted regression relative to the concentration, "
               "with the argument used as the floor (i.e., \"-w 5\" implies "
               "that concentrations will be weighted by 1/c, with 5 as the "
-              "min concentration used.)"),
+              "min concentration used)"),
         type=float)
     parser.add_argument(
         "-b", "--bootstrap_iterations",
@@ -88,9 +88,21 @@ def fit_kinetics():
         type=int, default=-1)
     parser.add_argument(
         "-cpp", "--confidence_plot_points",
-        help=("Number of points to use per standard error in generating "
-              "confidence plots (SSR vs value) for parameters (default=None)"),
+        help=("Number of points to use on either side of optimum value in "
+              "generating confidence plots (error function vs value)"
+              "(default=None)"),
         type=int, default=None)
+    parser.add_argument(
+        "-cpt", "--confidence_plot_threshold",
+        help=("Percent increase in error function from optimized parameters "
+              "considered sufficient to stop generating data for confidence "
+              "plots (default=10.0)"),
+        type=float, default=10)
+    parser.add_argument(
+        "-cpm", "--confidence_plot_max_mult",
+        help=("Maximum multiple of optimized value that will be considered "
+              "for confidence plots (default=5.0)"),
+        type=float, default=5)
     parser.add_argument(
         "-cci", "--confidence_contour_intervals",
         help=("Number of intervals to be used in generating confidence "
@@ -203,6 +215,8 @@ def fit_kinetics():
             bootstrap_CI=args.confidence_interval,
             bootstrap_force1st=args.bootstrap_force1st,
             confidence_plot_points=args.confidence_plot_points,
+            confidence_plot_threshold=args.confidence_plot_threshold,
+            confidence_plot_max_mult=args.confidence_plot_max_mult,
             confidence_contour_intervals=args.confidence_contour_intervals,
             confidence_contour_multiplier=args.confidence_contour_multiplier,
             confidence_contour_cs=args.confidence_contour_concs,

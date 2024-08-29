@@ -284,7 +284,8 @@ class KineticModel:
                      conc0_const=None, N_boot=0, monitor=False,
                      boot_CI=95, boot_points=1000, boot_t_exp=1.1,
                      boot_force1st=False, boot_nodes=-1, cp_points=4,
-                     cc_ints=10, cc_mult=3.0, cc_include_cs=False):
+                     cp_threshold=10.0, cp_max_mult=5.0, cc_ints=10,
+                     cc_mult=3.0, cc_include_cs=False):
         """Performs a fit to a set of datasets containing time and
         concentration data.
 
@@ -459,8 +460,8 @@ class KineticModel:
 
             if cp_points:
                 reg_info['conf_plots'] = self.confidence_plots(reg_info,
-                        datasets, num_datasets, cp_points, nodes=boot_nodes,
-                        monitor=monitor)
+                        datasets, num_datasets, cp_points, cp_threshold,
+                        cp_max_mult, nodes=boot_nodes, monitor=monitor)
 
             if cc_ints:
                 reg_info['conf_contours'] = self.confidence_contours(
@@ -726,8 +727,9 @@ class KineticModel:
         return [n for p in concs for n in p]
 
     def confidence_plots(self, reg_info, datasets, num_datasets, cp_points,
-                         nodes=-1, monitor=False):
-        """Generates confidence plots, plots of the SSR as a function of
+                         cp_threshold=10.0, cp_max_mult=5, nodes=-1,
+                         monitor=False):
+        """Generates confidence plots, plots of the error function against
         variation in each parameter.
 
         Returns a list of lists of tuples of the values and the SSRs.
@@ -750,14 +752,17 @@ class KineticModel:
             return par, ssr
 
         # Get all parameters and CIs from reg_info.
-        # Need to flatten the lists of concentrations.
+        # Lists of concentrations are flattened.
+        # All of the parameters that are optimized.
         params = reg_info['fit_ks'] + self.flatten_concs(reg_info['fit_concs'])
+        # Lower and upper confidence intervals for the parameters.
         params_bot = (list(reg_info['boot_param_CIs'][0][0][0])
                 + self.flatten_concs([reg_info['boot_param_CIs'][n][1][0]
                         for n in range(len(datasets))]))
         params_top = (list(reg_info['boot_param_CIs'][0][0][1])
                 + self.flatten_concs([reg_info['boot_param_CIs'][n][1][1]
                         for n in range(len(datasets))]))
+        # Names of all parameters.
         conc0_names = ([f"{n}({i+1})" for i in range(num_datasets)
                             for n in self.conc0_var_names])
         parameter_names = self.k_var_names + conc0_names
@@ -778,13 +783,10 @@ class KineticModel:
 
             # Determine the set of values to be considered for the
             # isolated parameter.
-            int_bot = (curr_par - params_bot[par_num])/cp_points
-            int_top = (params_top[par_num] - curr_par)/cp_points
-
-            # Will need to handle case where parameter dips below zero, probably.
+            delta = (curr_par)/cp_points
             new_pars = ([curr_par]
-                         + [curr_par - int_bot*(n+1) for n in range(cp_points)]
-                         + [curr_par + int_top*(n+1) for n in range(cp_points)])
+                         + [curr_par - delta*(n+1) for n in range(cp_points)]
+                         + [curr_par + delta*(n+1) for n in range(cp_points)])
             new_pars.sort()
 
             # Non-parallelized code.
@@ -798,11 +800,27 @@ class KineticModel:
                 #               reg_info['parameter_constants'], False))
                 # ssr = fit_results.cost * 2
 
+            # Generate the initial data.
             cp_results = Parallel(n_jobs=nodes)(
                     delayed(_results)((ps, par_num, other_pars,
-                            other_pars_ind)) for ps in tqdm(new_pars, disable=not monitor, leave=True))
-            output.append([curr_param_name, cp_results])
+                            other_pars_ind)) for ps in tqdm(new_pars,
+                            disable=not monitor, leave=True))
 
+            # If error function at highest considered value is not above
+            # the threshold, add additional points and keep going until
+            # either the threshold is reached or the ceiling is hit.
+            opt_ssr = reg_info['ssr']
+            while ((cp_results[-1][1] - opt_ssr)/opt_ssr*100 < cp_threshold
+                    and cp_results[-1][0] < cp_max_mult*curr_par):
+                new_pars = [cp_results[-1][0] + delta*(n+1) for n in range(cp_points)]
+                if monitor: print("--Additional points required.")
+                cp_results += Parallel(n_jobs=nodes)(
+                        delayed(_results)((ps, par_num, other_pars,
+                                other_pars_ind)) for ps in tqdm(new_pars,
+                                disable=not monitor, leave=True))
+
+            # Add the results for the current parameter to the output.
+            output.append([curr_param_name, cp_results])
         return output
 
     def _solved_kin_sys(self, conc0, ks, times):

@@ -459,7 +459,8 @@ class KineticModel:
 
             if cp_points:
                 reg_info['conf_plots'] = self.confidence_plots(reg_info,
-                        datasets, num_datasets, cp_points, monitor)
+                        datasets, num_datasets, cp_points, nodes=boot_nodes,
+                        monitor=monitor)
 
             if cc_ints:
                 reg_info['conf_contours'] = self.confidence_contours(
@@ -725,12 +726,28 @@ class KineticModel:
         return [n for p in concs for n in p]
 
     def confidence_plots(self, reg_info, datasets, num_datasets, cp_points,
-                         monitor=False):
+                         nodes=-1, monitor=False):
         """Generates confidence plots, plots of the SSR as a function of
         variation in each parameter.
 
         Returns a list of lists of tuples of the values and the SSRs.
         """
+
+        def _results(inp):
+            """Reformats _residual_fix for parallel processing.
+            """
+
+            par, ind, var_params, var_params_ind = inp
+
+            cp_results = scipy.optimize.least_squares(
+                    self._residual_fix, var_params,
+                    bounds=self.bounds,
+                    args=(var_params_ind, [par],
+                          [ind], datasets,
+                          reg_info['parameter_constants'], False))
+            ssr = cp_results.cost * 2
+
+            return par, ssr
 
         # Get all parameters and CIs from reg_info.
         # Need to flatten the lists of concentrations.
@@ -741,13 +758,17 @@ class KineticModel:
         params_top = (list(reg_info['boot_param_CIs'][0][0][1])
                 + self.flatten_concs([reg_info['boot_param_CIs'][n][1][1]
                         for n in range(len(datasets))]))
+        conc0_names = ([f"{n}({i+1})" for i in range(num_datasets)
+                            for n in self.conc0_var_names])
+        parameter_names = self.k_var_names + conc0_names
 
         output = []
         # Iterate over each parameter, fixing each and optimizing the
         # others to determine the confidence plot.
-        if monitor: print("Confidence plots:")
-        for par_num in tqdm(range(len(params)), disable=not monitor):
-            # print(f"Parameter {par_num + 1} of {len(params)}")
+        for par_num in range(len(params)):
+            curr_param_name = parameter_names[par_num]
+            if monitor:
+                print(f"Confidence plot for {curr_param_name}:")
             # Isolate the current parameter from the overall list.
             curr_par = params[par_num]
             other_pars = params.copy()
@@ -764,19 +785,22 @@ class KineticModel:
             new_pars = ([curr_par]
                          + [curr_par - int_bot*(n+1) for n in range(cp_points)]
                          + [curr_par + int_top*(n+1) for n in range(cp_points)])
-            # print(new_pars)
 
-            par_var_results = []
-            for new_par in tqdm(new_pars, disable=not monitor, leave=False):
-                fit_results = scipy.optimize.least_squares(
-                        self._residual_fix, other_pars,
-                        bounds=self.bounds,
-                        args=(other_pars_ind, [new_par],
-                              [par_num], datasets,
-                              reg_info['parameter_constants'], False))
-                ssr = fit_results.cost * 2
-                par_var_results.append((new_par, ssr))
-            output.append(par_var_results)
+            # Non-parallelized code.
+            # par_var_results = []
+            # for new_par in tqdm(new_pars, disable=not monitor, leave=False):
+                # fit_results = scipy.optimize.least_squares(
+                #         self._residual_fix, other_pars,
+                #         bounds=self.bounds,
+                #         args=(other_pars_ind, [new_par],
+                #               [par_num], datasets,
+                #               reg_info['parameter_constants'], False))
+                # ssr = fit_results.cost * 2
+
+            cp_results = Parallel(n_jobs=nodes)(
+                    delayed(_results)((ps, par_num, other_pars,
+                            other_pars_ind)) for ps in tqdm(new_pars, disable=not monitor, leave=True))
+            output.append([curr_param_name, cp_results])
 
         return output
 

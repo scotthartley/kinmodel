@@ -384,6 +384,16 @@ def prepare_conf_contours(pair):
     return text
 
 
+def prepare_conf_plots(param):
+    """Generates the output text for confidence plots.
+    """
+    text = f"{param[0]} ssr\n"
+    for result in param[1]:
+        text += " ".join(str(t) for t in result)
+        text += "\n"
+    return text
+
+
 def generate_cc_plot(pair, num_points, reg_info, output_base_filename,
                      output_contour_plot=False):
     """Generates contour plots for confidence contours.
@@ -568,3 +578,12 @@ def fit_and_output(
                     param_pair, confidence_contour_intervals, reg_info,
                     cc_filename,
                     output_contour_plot=confidence_contour_include_ccplot)
+
+    if confidence_plot_points:
+        base_cp_filename = base_filename + "_cp"
+        for param in reg_info['conf_plots']:
+            cp_filename = base_cp_filename + f"_{param[0]}"
+            cp_output_text = prepare_conf_plots(param)
+            cp_text_filename = cp_filename + ".txt"
+            with open(cp_text_filename, 'w', encoding='utf-8') as write_file:
+                print(cp_output_text, file=write_file)

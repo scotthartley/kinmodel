@@ -785,6 +785,7 @@ class KineticModel:
             new_pars = ([curr_par]
                          + [curr_par - int_bot*(n+1) for n in range(cp_points)]
                          + [curr_par + int_top*(n+1) for n in range(cp_points)])
+            new_pars.sort()
 
             # Non-parallelized code.
             # par_var_results = []

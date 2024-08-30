@@ -458,16 +458,6 @@ class KineticModel:
                 reg_info['boot_calc_CIs'].append(b[3])
                 reg_info['boot_plot_ts'].append(b[4])
 
-            if cp_points:
-                reg_info['conf_plots'] = self.confidence_plots(reg_info,
-                        datasets, num_datasets, cp_points, cp_threshold,
-                        cp_max_mult, nodes=boot_nodes, monitor=monitor)
-
-            if cc_ints:
-                reg_info['conf_contours'] = self.confidence_contours(
-                        reg_info, datasets, num_datasets, cc_ints,
-                        cc_mult=cc_mult, monitor=monitor,
-                        nodes=boot_nodes, include_cs=cc_include_cs)
         return reg_info
 
     def confidence_contours(self, reg_info, datasets, num_datasets,

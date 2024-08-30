@@ -537,6 +537,7 @@ def fit_and_output(
 
     """
 
+    write_new_pickle = False
     if not load_reg_info:
         datasets = Dataset.read_raw_data(model, data_filename)
         reg_info = model.fit_to_model(
@@ -551,48 +552,41 @@ def fit_and_output(
                 boot_points=text_output_points,
                 boot_t_exp=text_time_extension_factor,
                 boot_force1st=bootstrap_force1st,
-                boot_nodes=bootstrap_nodes,
-                cp_points = confidence_plot_points,
-                cp_threshold = confidence_plot_threshold,
-                cp_max_mult = confidence_plot_max_mult,
-                cc_ints=confidence_contour_intervals,
-                cc_mult=confidence_contour_multiplier,
-                cc_include_cs=confidence_contour_cs)
+                boot_nodes=bootstrap_nodes)
 
         file_suffix = ""
         if bootstrap_force1st:
             file_suffix += "_ff"
 
         base_filename = f"{data_filename}_{model.name}{file_suffix}"
-
-        with open(base_filename + PICKLE_SUFFIX, 'wb') as file:
-            pickle.dump(reg_info, file)
+        write_new_pickle = True
     else:
         with open(data_filename, 'rb') as file:
             reg_info = pickle.load(file)
-
-        if confidence_contour_intervals:
-            reg_info['conf_contours'] = model.confidence_contours(
-                    reg_info, reg_info['datasets'],
-                    reg_info['num_datasets'],
-                    confidence_contour_intervals,
-                    cc_mult=confidence_contour_multiplier, monitor=monitor,
-                    nodes=bootstrap_nodes, include_cs=confidence_contour_cs)
-
-        if confidence_plot_points:
-            reg_info['conf_plots'] = model.confidence_plots(
-                    reg_info, reg_info['datasets'], reg_info['num_datasets'],
-                    confidence_plot_points,
-                    cp_threshold=confidence_plot_threshold,
-                    cp_max_mult=confidence_plot_max_mult,
-                    nodes=bootstrap_nodes,
-                    monitor=monitor)
-
         base_filename = f"{data_filename}"
 
-        if confidence_contour_intervals or confidence_plot_points:
-            with open(base_filename + PICKLE_SUFFIX, 'wb') as file:
-                pickle.dump(reg_info, file)
+    if confidence_contour_intervals:
+        reg_info['conf_contours'] = model.confidence_contours(
+                reg_info, reg_info['datasets'],
+                reg_info['num_datasets'],
+                confidence_contour_intervals,
+                cc_mult=confidence_contour_multiplier, monitor=monitor,
+                nodes=bootstrap_nodes, include_cs=confidence_contour_cs)
+        write_new_pickle = True
+
+    if confidence_plot_points:
+        reg_info['conf_plots'] = model.confidence_plots(
+                reg_info, reg_info['datasets'], reg_info['num_datasets'],
+                confidence_plot_points,
+                cp_threshold=confidence_plot_threshold,
+                cp_max_mult=confidence_plot_max_mult,
+                nodes=bootstrap_nodes,
+                monitor=monitor)
+        write_new_pickle = True
+
+    if write_new_pickle:
+        with open(base_filename + PICKLE_SUFFIX, 'wb') as file:
+            pickle.dump(reg_info, file)
 
     for n in range(reg_info['num_datasets']):
         output_text = prepare_text(

@@ -97,7 +97,7 @@ def fit_kinetics():
         help=("Percent increase in error function from optimized parameters "
               "considered sufficient to stop generating data for confidence "
               "plots (default=10.0)"),
-        type=float, default=10)
+        type=float, default=10.0)
     parser.add_argument(
         "-cpm", "--confidence_plot_max_mult",
         help=("Maximum multiple of optimized value that will be considered "

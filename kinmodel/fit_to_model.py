@@ -16,8 +16,13 @@ from .KineticModel import IndirectKineticModel
 COLORS = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
 CP_COLOR = 'k'
 CP_STYLE = 'o-' + CP_COLOR
+CP_ERR_STYLE = '-' + CP_COLOR
+CP_ERR_THRESH_STYLE = ':' + CP_COLOR
 CP_SSR_LINE = 'solid'
 CP_TARGET_LINE = 'dotted'
+CP_Y_LABEL = "Error function"
+CP_ERR_LABEL = "Error function when optimized"
+CP_ERR_THRESHOLD = "Error function +"
 MARKER_SIZE = 12
 FIGURE_SIZE_1 = (3.3, 3)
 FIGURE_SIZE_2 = (3.3, 5.2)
@@ -416,14 +421,24 @@ def generate_cp_plot(param_data, reg_info, output_base_filename, threshold):
     # Draw the data as scatter plot
     plt.plot(xdata, ydata, CP_STYLE, markersize=MARKER_SIZE**0.5)
 
-    # Draw lines at the optimized ssr and the ssr + 25%
+    # Draw lines at the optimized ssr and the ssr + threshold.
     original_error_func = reg_info['ssr']
-    plt.hlines(original_error_func, xdata[0], xdata[-1], colors=CP_COLOR,
-            linestyles=CP_SSR_LINE)
+    # plt.hlines(original_error_func, xdata[0], xdata[-1], colors=CP_COLOR,
+    #         linestyles=CP_SSR_LINE, label=CP_ERR_LABEL)
+    plt.plot([xdata[0], xdata[-1]], [original_error_func, original_error_func],
+            CP_ERR_STYLE, label=CP_ERR_LABEL)
     target_error_func = original_error_func * (threshold/100 + 1)
-    plt.hlines(target_error_func, xdata[0], xdata[-1], colors=CP_COLOR,
-            linestyles=CP_TARGET_LINE)
+    threshold_label = f"{CP_ERR_THRESHOLD} {threshold}%"
+    # plt.hlines(target_error_func, xdata[0], xdata[-1], colors=CP_COLOR,
+    #         linestyles=CP_TARGET_LINE, label=threshold_label)
+    plt.plot([xdata[0], xdata[-1]], [target_error_func, target_error_func],
+            CP_ERR_THRESH_STYLE, label=threshold_label)
 
+    plt.ylabel(CP_Y_LABEL)
+    plt.xlabel(name)
+    plt.legend()
+
+    plt.tight_layout()
     plt.savefig(output_base_filename + "_cp.pdf")
     plt.close()
 

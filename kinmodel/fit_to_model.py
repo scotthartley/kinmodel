@@ -394,15 +394,25 @@ def prepare_conf_plots(param):
     return text
 
 
-def generate_cc_plot(pair, num_points, reg_info, output_base_filename,
+def generate_cp_plot():
+    """Generates a confidence plot for a given variable.
+
+    """
+    pass
+
+def generate_cc_plot(pair, reg_info, output_base_filename,
                      output_contour_plot=False):
-    """Generates contour plots for confidence contours.
+    """Generates a contour plot or heat map for confidence contours.
+
+    'pair' is a list, with pair[0] a tuple of the two parameters being
+    varied, and pair[1] a list of datapoints.
     """
     rcParams.update(PLT_PARAMS)
     data = np.array(pair[1])
     xlist = data[:, 0]
     ylist = data[:, 1]
     zlist = data[:, 2]
+    num_points = int(len(xlist)**0.5)
     # Plotted data is actually the normalized inverse of the ssr.
     zlist_inv = reg_info['ssr']/zlist
     X = [xlist[n] for n in range(0, len(xlist), num_points)]
@@ -537,6 +547,10 @@ def fit_and_output(
 
         base_filename = f"{data_filename}"
 
+        if confidence_contour_intervals or confidence_plot_points:
+            with open(base_filename + PICKLE_SUFFIX, 'wb') as file:
+                pickle.dump(reg_info, file)
+
     for n in range(reg_info['num_datasets']):
         output_text = prepare_text(
                 model, reg_info, n, text_output_points,
@@ -577,7 +591,7 @@ def fit_and_output(
                     plot_time=(max(reg_info['dataset_times'][n])
                                * plot_time_extension_factor))
 
-    if confidence_contour_intervals:
+    if 'conf_contours' in reg_info:
         base_cc_filename = base_filename + "_cc"
         for param_pair in reg_info['conf_contours']:
             cc_filename = (base_cc_filename +
@@ -588,11 +602,10 @@ def fit_and_output(
                 print(cc_output_text, file=write_file)
 
             generate_cc_plot(
-                    param_pair, confidence_contour_intervals, reg_info,
-                    cc_filename,
+                    param_pair, reg_info, cc_filename,
                     output_contour_plot=confidence_contour_include_ccplot)
 
-    if confidence_plot_points:
+    if 'conf_plots' in reg_info:
         base_cp_filename = base_filename + "_cp"
         for param in reg_info['conf_plots']:
             cp_filename = base_cp_filename + f"_{param[0]}"

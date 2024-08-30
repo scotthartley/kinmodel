@@ -14,6 +14,10 @@ from .KineticModel import IndirectKineticModel
 
 # Parameters and settings for plots.
 COLORS = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
+CP_COLOR = 'k'
+CP_STYLE = 'o-' + CP_COLOR
+CP_SSR_LINE = 'solid'
+CP_TARGET_LINE = 'dotted'
 MARKER_SIZE = 12
 FIGURE_SIZE_1 = (3.3, 3)
 FIGURE_SIZE_2 = (3.3, 5.2)
@@ -394,11 +398,35 @@ def prepare_conf_plots(param):
     return text
 
 
-def generate_cp_plot():
+def generate_cp_plot(param_data, reg_info, output_base_filename, threshold):
     """Generates a confidence plot for a given variable.
 
+    Arguments:
+        param_data: list; param_data[0] has the name, param_data[1] the xy
+            data to be plotted.
+        threshold: Percentage above optimum error function to draw on plot.
     """
-    pass
+    rcParams.update(PLT_PARAMS)
+    name = param_data[0]
+    xdata = [p[0] for p in param_data[1]]
+    ydata = [p[1] for p in param_data[1]]
+
+    plt.figure(figsize=FIGURE_SIZE_1)
+
+    # Draw the data as scatter plot
+    plt.plot(xdata, ydata, CP_STYLE, markersize=MARKER_SIZE**0.5)
+
+    # Draw lines at the optimized ssr and the ssr + 25%
+    original_error_func = reg_info['ssr']
+    plt.hlines(original_error_func, xdata[0], xdata[-1], colors=CP_COLOR,
+            linestyles=CP_SSR_LINE)
+    target_error_func = original_error_func * (threshold/100 + 1)
+    plt.hlines(target_error_func, xdata[0], xdata[-1], colors=CP_COLOR,
+            linestyles=CP_TARGET_LINE)
+
+    plt.savefig(output_base_filename + "_cp.pdf")
+    plt.close()
+
 
 def generate_cc_plot(pair, reg_info, output_base_filename,
                      output_contour_plot=False):
@@ -613,3 +641,6 @@ def fit_and_output(
             cp_text_filename = cp_filename + ".txt"
             with open(cp_text_filename, 'w', encoding='utf-8') as write_file:
                 print(cp_output_text, file=write_file)
+
+            generate_cp_plot(
+                    param, reg_info, cp_filename, confidence_plot_threshold)

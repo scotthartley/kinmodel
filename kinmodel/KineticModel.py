@@ -745,14 +745,7 @@ class KineticModel:
         # Lists of concentrations are flattened.
         # All of the parameters that are optimized.
         params = reg_info['fit_ks'] + self.flatten_concs(reg_info['fit_concs'])
-        # Lower and upper confidence intervals for the parameters.
-        params_bot = (list(reg_info['boot_param_CIs'][0][0][0])
-                + self.flatten_concs([reg_info['boot_param_CIs'][n][1][0]
-                        for n in range(len(datasets))]))
-        params_top = (list(reg_info['boot_param_CIs'][0][0][1])
-                + self.flatten_concs([reg_info['boot_param_CIs'][n][1][1]
-                        for n in range(len(datasets))]))
-        # Names of all parameters.
+
         conc0_names = ([f"{n}({i+1})" for i in range(num_datasets)
                             for n in self.conc0_var_names])
         parameter_names = self.k_var_names + conc0_names

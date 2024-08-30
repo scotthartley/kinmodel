@@ -168,6 +168,10 @@ def fit_kinetics():
         help=("Do not print parameters on plots"),
         action='store_true')
     parser.add_argument(
+        "-f", "--override_filename",
+        help=("Specify base filename"),
+        type=str)
+    parser.add_argument(
         "-u", "--units",
         help=("Time and concentration units, each as a single word"),
         nargs=2, type=str)
@@ -227,4 +231,5 @@ def fit_kinetics():
             units=args.units,
             simulate=not args.no_simulate_direct,
             load_reg_info=args.load_reg_info,
+            override_filename=args.override_filename,
             )

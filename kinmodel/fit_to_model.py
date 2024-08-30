@@ -51,7 +51,7 @@ PLT_PARAMS = {'font.size': 8,
               'image.interpolation': 'nearest',
               }
 
-PICKLE_SUFFIX = "_reg_info.pickle"
+PICKLE_SUFFIX = ".pickle"
 
 # Prevent line breaking and format numbers from np
 np.set_printoptions(linewidth=np.nan)
@@ -532,7 +532,8 @@ def fit_and_output(
             units=None,
             simulate=True,
             calcs=True,
-            load_reg_info=False):
+            load_reg_info=False,
+            override_filename=None):
     """Carry out the fit of the model and output the data.
 
     """
@@ -564,6 +565,9 @@ def fit_and_output(
         with open(data_filename, 'rb') as file:
             reg_info = pickle.load(file)
         base_filename = f"{data_filename}"
+
+    if override_filename:
+        base_filename = override_filename
 
     if confidence_contour_intervals:
         reg_info['conf_contours'] = model.confidence_contours(

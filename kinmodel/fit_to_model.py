@@ -526,6 +526,15 @@ def fit_and_output(
                     cc_mult=confidence_contour_multiplier, monitor=monitor,
                     nodes=bootstrap_nodes, include_cs=confidence_contour_cs)
 
+        if confidence_plot_points:
+            reg_info['conf_plots'] = model.confidence_plots(
+                    reg_info, reg_info['datasets'], reg_info['num_datasets'],
+                    confidence_plot_points,
+                    cp_threshold=confidence_plot_threshold,
+                    cp_max_mult=confidence_plot_max_mult,
+                    nodes=bootstrap_nodes,
+                    monitor=monitor)
+
         base_filename = f"{data_filename}"
 
     for n in range(reg_info['num_datasets']):

@@ -82,7 +82,7 @@ def fit_kinetics():
         help=("Force bootstrapping to always use first data points"),
         action='store_true')
     parser.add_argument(
-        "-bn", "--bootstrap_nodes",
+        "-n", "--nodes",
         help=("Number of nodes to be used in parallel processing "
               "(default=all)"),
         type=int, default=-1)
@@ -211,7 +211,7 @@ def fit_kinetics():
             text_full_output=not args.summary_output,
             monitor=not args.no_verbose,
             bootstrap_iterations=args.bootstrap_iterations,
-            bootstrap_nodes=args.bootstrap_nodes,
+            nodes=args.nodes,
             bootstrap_CI=args.confidence_interval,
             bootstrap_force1st=args.bootstrap_force1st,
             confidence_plot_points=args.confidence_plot_points,

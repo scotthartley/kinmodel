@@ -518,7 +518,7 @@ def fit_and_output(
             bootstrap_iterations=100,
             bootstrap_CI=95,
             bootstrap_force1st=False,
-            bootstrap_nodes=None,
+            nodes=None,
             confidence_plot_points=None,
             confidence_plot_threshold=10.0,
             confidence_plot_max_mult=5.0,
@@ -552,7 +552,7 @@ def fit_and_output(
                 boot_points=text_output_points,
                 boot_t_exp=text_time_extension_factor,
                 boot_force1st=bootstrap_force1st,
-                boot_nodes=bootstrap_nodes)
+                boot_nodes=nodes)
 
         file_suffix = ""
         if bootstrap_force1st:
@@ -571,7 +571,7 @@ def fit_and_output(
                 reg_info['num_datasets'],
                 confidence_contour_intervals,
                 cc_mult=confidence_contour_multiplier, monitor=monitor,
-                nodes=bootstrap_nodes, include_cs=confidence_contour_cs)
+                nodes=nodes, include_cs=confidence_contour_cs)
         write_new_pickle = True
 
     if confidence_plot_points:
@@ -580,7 +580,7 @@ def fit_and_output(
                 confidence_plot_points,
                 cp_threshold=confidence_plot_threshold,
                 cp_max_mult=confidence_plot_max_mult,
-                nodes=bootstrap_nodes,
+                nodes=nodes,
                 monitor=monitor)
         write_new_pickle = True
 

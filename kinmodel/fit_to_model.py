@@ -23,6 +23,8 @@ CP_TARGET_LINE = 'dotted'
 CP_Y_LABEL = "Error function"
 CP_ERR_LABEL = "Error function when optimized"
 CP_ERR_THRESHOLD = "Error function +"
+CP_Y_MAX_MULT = 20
+CP_Y_MIN_MULT = 0.5
 MARKER_SIZE = 12
 FIGURE_SIZE_1 = (3.3, 3)
 FIGURE_SIZE_2 = (3.3, 5.2)
@@ -433,6 +435,12 @@ def generate_cp_plot(param_data, reg_info, output_base_filename, threshold):
     #         linestyles=CP_TARGET_LINE, label=threshold_label)
     plt.plot([xdata[0], xdata[-1]], [target_error_func, target_error_func],
             CP_ERR_THRESH_STYLE, label=threshold_label)
+
+    # Restrict maximum extent of y-axis
+    max_y = original_error_func * (CP_Y_MAX_MULT*threshold/100 + 1)
+    min_y = original_error_func * (1 - CP_Y_MIN_MULT*threshold/100)
+    if max(ydata) > max_y:
+        plt.ylim(bottom=min_y, top=max_y)
 
     plt.ylabel(CP_Y_LABEL)
     plt.xlabel(name)

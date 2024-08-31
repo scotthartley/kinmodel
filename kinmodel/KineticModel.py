@@ -281,24 +281,11 @@ class KineticModel:
 
     def fit_to_model(self, datasets, ks_guesses=None,
                      conc0_guesses=None, ks_const=None,
-                     conc0_const=None, N_boot=0, monitor=False,
-                     boot_CI=95, boot_points=1000, boot_t_exp=1.1,
-                     boot_force1st=False, boot_nodes=-1, cp_points=4,
-                     cp_threshold=10.0, cp_max_mult=5.0, cc_ints=10,
-                     cc_mult=3.0, cc_include_cs=False):
+                     conc0_const=None, monitor=False):
         """Performs a fit to a set of datasets containing time and
         concentration data.
 
         """
-        def _sim_boot(inp):
-            """Wrapper function to parallelize bootstrap simulations.
-            """
-            d = inp
-            param_CIs = self.bootstrap_param_CIs(reg_info, d, boot_CI)
-            boot_CIs, boot_calc_CIs, boot_ts = self.bootstrap_plot_CIs(
-                    reg_info, d, boot_CI, boot_points, boot_t_exp,
-                    monitor=False)
-            return d, param_CIs, boot_CIs, boot_calc_CIs, boot_ts
 
         num_datasets = len(datasets)
         total_points = sum(d.total_data_points for d in datasets)
@@ -423,40 +410,58 @@ class KineticModel:
         D_inv = np.linalg.inv(np.sqrt(np.diag(np.diag(reg_info['pcov']))))
         reg_info['corr'] = D_inv @ reg_info['pcov'] @ D_inv
 
-        if N_boot > 1:
-            reg_info['boot_num'] = N_boot
+        return reg_info
 
-            reg_info['boot_method'] = "random-X"
-            reg_info['boot_force1st'] = True if boot_force1st else False
-            all_boot_datasets = Dataset.boot_randomX(
-                                        N_boot, datasets,
-                                        force1st=boot_force1st)
+    def bootstrap(self, reg_info, datasets, N_boot, monitor=False,
+            boot_CI=95, boot_points=1000, boot_t_exp=1.1,
+            boot_force1st=False, boot_nodes=-1):
+        """Executes bootstrapping of fits.
+        """
 
-            reg_info['boot_fit_ks'], reg_info['boot_fit_concs'] = (
-                    self.bootstrap(
-                            all_boot_datasets, results['x'],
-                            parameter_constants, monitor, nodes=boot_nodes))
+        def _sim_boot(inp):
+            """Wrapper function to parallelize bootstrap simulations.
+            """
+            d = inp
+            param_CIs = self.bootstrap_param_CIs(reg_info, d, boot_CI)
+            boot_CIs, boot_calc_CIs, boot_ts = self.bootstrap_plot_CIs(
+                    reg_info, d, boot_CI, boot_points, boot_t_exp,
+                    monitor=False)
+            return d, param_CIs, boot_CIs, boot_calc_CIs, boot_ts
 
-            if monitor:
-                print("Bootstrapping simulations:")
-                boot_CI_results = Parallel(n_jobs=boot_nodes)(
-                        delayed(_sim_boot)(d)
-                                for d in tqdm(list(range(num_datasets))))
-            else:
-                boot_CI_results = Parallel(n_jobs=boot_nodes)(
-                        delayed(_sim_boot)(d)
-                                for d in list(range(num_datasets)))
+        reg_info['boot_num'] = N_boot
 
-            reg_info['boot_CI'] = boot_CI
-            reg_info['boot_param_CIs'] = []
-            reg_info['boot_plot_CIs'] = []
-            reg_info['boot_plot_ts'] = []
-            reg_info['boot_calc_CIs'] = []
-            for b in boot_CI_results:
-                reg_info['boot_param_CIs'].append(b[1])
-                reg_info['boot_plot_CIs'].append(b[2])
-                reg_info['boot_calc_CIs'].append(b[3])
-                reg_info['boot_plot_ts'].append(b[4])
+        reg_info['boot_method'] = "random-X"
+        reg_info['boot_force1st'] = True if boot_force1st else False
+        all_boot_datasets = Dataset.boot_randomX(
+                                    N_boot, datasets,
+                                    force1st=boot_force1st)
+
+        reg_info['boot_fit_ks'], reg_info['boot_fit_concs'] = (
+                self.process_bootstrap(
+                        all_boot_datasets, reg_info['all_params'],
+                        reg_info['parameter_constants'], monitor,
+                        nodes=boot_nodes))
+
+        if monitor:
+            print("Bootstrapping simulations:")
+            boot_CI_results = Parallel(n_jobs=boot_nodes)(
+                    delayed(_sim_boot)(d)
+                            for d in tqdm(list(range(reg_info['num_datasets']))))
+        else:
+            boot_CI_results = Parallel(n_jobs=boot_nodes)(
+                    delayed(_sim_boot)(d)
+                            for d in list(range(reg_info['num_datasets'])))
+
+        reg_info['boot_CI'] = boot_CI
+        reg_info['boot_param_CIs'] = []
+        reg_info['boot_plot_CIs'] = []
+        reg_info['boot_plot_ts'] = []
+        reg_info['boot_calc_CIs'] = []
+        for b in boot_CI_results:
+            reg_info['boot_param_CIs'].append(b[1])
+            reg_info['boot_plot_CIs'].append(b[2])
+            reg_info['boot_calc_CIs'].append(b[3])
+            reg_info['boot_plot_ts'].append(b[4])
 
         return reg_info
 
@@ -590,7 +595,7 @@ class KineticModel:
 
         return residuals
 
-    def bootstrap(self, all_datasets, fit_params, constants,
+    def process_bootstrap(self, all_datasets, fit_params, constants,
                   monitor=False, nodes=-1):
         """Process a set of datasets obtained by a bootstrapping method,
         returning the ks and concs.
@@ -709,7 +714,7 @@ class KineticModel:
                 smooth_ts_out)
 
     @staticmethod
-    def flatten_concs(concs):
+    def _flatten_concs(concs):
         """Given a list of lists (or related), flattens the list. Useful
         for the lists of lists of optimized concentrations.
         """
@@ -744,7 +749,7 @@ class KineticModel:
         # Get all parameters and CIs from reg_info.
         # Lists of concentrations are flattened.
         # All of the parameters that are optimized.
-        params = reg_info['fit_ks'] + self.flatten_concs(reg_info['fit_concs'])
+        params = reg_info['fit_ks'] + self._flatten_concs(reg_info['fit_concs'])
 
         conc0_names = ([f"{n}({i+1})" for i in range(num_datasets)
                             for n in self.conc0_var_names])

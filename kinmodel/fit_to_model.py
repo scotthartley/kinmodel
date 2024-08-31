@@ -555,24 +555,26 @@ def fit_and_output(
                 conc0_guesses=conc_guesses,
                 ks_const=fixed_ks,
                 conc0_const=fixed_concs,
-                monitor=monitor,
-                N_boot=bootstrap_iterations,
-                boot_CI=bootstrap_CI,
-                boot_points=text_output_points,
-                boot_t_exp=text_time_extension_factor,
-                boot_force1st=bootstrap_force1st,
-                boot_nodes=nodes)
-
-        file_suffix = ""
-        if bootstrap_force1st:
-            file_suffix += "_ff"
-
-        base_filename = f"{data_filename}_{model.name}{file_suffix}"
+                monitor=monitor,)
+        base_filename = f"{data_filename}_{model.name}"
         write_new_pickle = True
     else:
         with open(data_filename, 'rb') as file:
             reg_info = pickle.load(file)
         base_filename = f"{data_filename}"
+
+    if bootstrap_iterations:
+        reg_info = model.bootstrap(
+                reg_info=reg_info,
+                datasets=datasets,
+                N_boot=bootstrap_iterations,
+                monitor=monitor,
+                boot_CI=bootstrap_CI,
+                boot_points=text_output_points,
+                boot_t_exp=text_time_extension_factor,
+                boot_force1st=bootstrap_force1st,
+                boot_nodes=nodes)
+        if bootstrap_force1st: base_filename += "_ff"
 
     if override_filename:
         base_filename = override_filename

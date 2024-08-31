@@ -497,45 +497,28 @@ class KineticModel:
                 ssr = sum(r**2 for r in residuals)
             return p1, p2, ssr
 
-        ks_bot = list(reg_info['boot_param_CIs'][0][0][0])
-        ks_top = list(reg_info['boot_param_CIs'][0][0][1])
         if include_cs:
             all_conc0_names = ([f"{n}({i+1})" for i in range(num_datasets)
                                 for n in self.conc0_var_names])
             all_parameter_names = self.k_var_names + all_conc0_names
-
-            # Flattens list of lists of cs.
-            cs_bot = list(itertools.chain.from_iterable([list(
-                    reg_info['boot_param_CIs'][d][1][0])
-                    for d in range(num_datasets)]))
-            cs_top = list(itertools.chain.from_iterable([list(
-                    reg_info['boot_param_CIs'][d][1][1])
-                    for d in range(num_datasets)]))
-            all_params_bot = ks_bot + cs_bot
-            all_params_top = ks_top + cs_top
             total_num_params = (self.num_var_ks
                                 + self.num_var_concs0*num_datasets)
         else:  # Only ks are included.
             all_parameter_names = self.k_var_names
-            all_params_bot = ks_bot
-            all_params_top = ks_top
             total_num_params = self.num_var_ks
 
         results = []
         for p1_ind in range(total_num_params-1):
             for p2_ind in range(p1_ind+1, total_num_params):
-                p1_vals = self._bracket_param(
-                        reg_info['all_params'][p1_ind],
-                        all_params_bot[p1_ind],
-                        all_params_top[p1_ind],
-                        num_intervals,
-                        cc_mult=cc_mult)
-                p2_vals = self._bracket_param(
-                        reg_info['all_params'][p2_ind],
-                        all_params_bot[p2_ind],
-                        all_params_top[p2_ind],
-                        num_intervals,
-                        cc_mult=cc_mult)
+                # Determine values of p1 and p2 to be tested. From 0 to
+                # cc_mult * the optimized parameter value, divided into
+                # num_intervals points per side.
+                p1_opt_value = reg_info['all_params'][p1_ind]
+                p1_delta = p1_opt_value * cc_mult/(num_intervals-1)
+                p1_vals = [p1_delta*n for n in range(num_intervals)]
+                p2_opt_value = reg_info['all_params'][p2_ind]
+                p2_delta = p2_opt_value * cc_mult/(num_intervals-1)
+                p2_vals = [p2_delta*n for n in range(num_intervals)]
 
                 var_params = list(reg_info['all_params'])
                 var_params_ind = [x for x in range(len(
@@ -958,60 +941,60 @@ class KineticModel:
             print(", ".join(a for a in all_models), "are currently available.")
             sys.exit(1)
 
-    def _bracket_param(self, param, low, high, num_iterations, cc_mult=2):
-        """Used to generated confidence contours. Returns the upper and
-        lower limits that should be used for a given value of param and
-        high and low CIs.
-        """
-        delta_high = high - param
-        delta_low = param - low
-        delta = cc_mult*max(delta_high, delta_low)
+    # def _bracket_param(self, param, low, high, num_iterations, cc_mult=2):
+    #     """Used to generated confidence contours. Returns the upper and
+    #     lower limits that should be used for a given value of param and
+    #     high and low CIs.
+    #     """
+    #     delta_high = high - param
+    #     delta_low = param - low
+    #     delta = cc_mult*max(delta_high, delta_low)
 
-        # We want the CCs to always include the actual optimized param,
-        # ideally in the center but offset if the parameter would be
-        # outside of the bounds. If an even number of iterations is
-        # specified, such that there is no exact center of the plot, the
-        # range favors the high end.
+    #     # We want the CCs to always include the actual optimized param,
+    #     # ideally in the center but offset if the parameter would be
+    #     # outside of the bounds. If an even number of iterations is
+    #     # specified, such that there is no exact center of the plot, the
+    #     # range favors the high end.
 
-        if ((param + delta) <= self.bounds[1] and
-                (param - delta) >= self.bounds[0]):
-            if num_iterations % 2 == 1:
-                interval = 2*delta/(num_iterations - 1)
-                bottom = param - (num_iterations-1)/2 * interval
-            else:
-                interval = 2*delta/num_iterations
-                bottom = param - (num_iterations/2 - 1) * interval
-        elif ((self.bounds[0] + 2*delta) <= self.bounds[1] and
-                (param - delta) < self.bounds[0]):
-            # Bounded on low end.
-            max_interval = 2*delta/(num_iterations - 1)
-            # Integer number of intervals to the actual param value.
-            n_to_p = math.ceil((param - self.bounds[0])/max_interval)
-            interval = (param - self.bounds[0])/n_to_p
-            bottom = self.bounds[0]
-        elif ((param + delta) > self.bounds[1] and
-                (self.bounds[1] - 2*delta) >= self.bounds[0]):
-            # Bounded on high end.
-            max_interval = 2*delta/(num_iterations - 1)
-            n_to_p = math.ceil((self.bounds[1] - param)/max_interval)
-            interval = (self.bounds[1] - param)/n_to_p
-            bottom = self.bounds[1] - (num_iterations-1)*interval
-        else:
-            # Bounded on both sides.
-            max_interval = (self.bounds[1] - self.bounds[0])/(num_iterations - 1)
-            n_to_p_low = (param - self.bounds[0])/max_interval
-            n_to_p_high = (self.bounds[1] - param)/max_interval
-            if (n_to_p_low % 1) < (n_to_p_high % 1):
-                n_to_p = math.ceil(n_to_p_low)
-            else:
-                n_to_p = math.floor(n_to_p_low)
-            interval = (param - self.bounds[0])/n_to_p
-            bottom = param - n_to_p*interval
+    #     if ((param + delta) <= self.bounds[1] and
+    #             (param - delta) >= self.bounds[0]):
+    #         if num_iterations % 2 == 1:
+    #             interval = 2*delta/(num_iterations - 1)
+    #             bottom = param - (num_iterations-1)/2 * interval
+    #         else:
+    #             interval = 2*delta/num_iterations
+    #             bottom = param - (num_iterations/2 - 1) * interval
+    #     elif ((self.bounds[0] + 2*delta) <= self.bounds[1] and
+    #             (param - delta) < self.bounds[0]):
+    #         # Bounded on low end.
+    #         max_interval = 2*delta/(num_iterations - 1)
+    #         # Integer number of intervals to the actual param value.
+    #         n_to_p = math.ceil((param - self.bounds[0])/max_interval)
+    #         interval = (param - self.bounds[0])/n_to_p
+    #         bottom = self.bounds[0]
+    #     elif ((param + delta) > self.bounds[1] and
+    #             (self.bounds[1] - 2*delta) >= self.bounds[0]):
+    #         # Bounded on high end.
+    #         max_interval = 2*delta/(num_iterations - 1)
+    #         n_to_p = math.ceil((self.bounds[1] - param)/max_interval)
+    #         interval = (self.bounds[1] - param)/n_to_p
+    #         bottom = self.bounds[1] - (num_iterations-1)*interval
+    #     else:
+    #         # Bounded on both sides.
+    #         max_interval = (self.bounds[1] - self.bounds[0])/(num_iterations - 1)
+    #         n_to_p_low = (param - self.bounds[0])/max_interval
+    #         n_to_p_high = (self.bounds[1] - param)/max_interval
+    #         if (n_to_p_low % 1) < (n_to_p_high % 1):
+    #             n_to_p = math.ceil(n_to_p_low)
+    #         else:
+    #             n_to_p = math.floor(n_to_p_low)
+    #         interval = (param - self.bounds[0])/n_to_p
+    #         bottom = param - n_to_p*interval
 
-        assert ((bottom >= self.bounds[0])
-                and (bottom + interval*(num_iterations - 1)))
+    #     assert ((bottom >= self.bounds[0])
+    #             and (bottom + interval*(num_iterations - 1)))
 
-        return [bottom + i*interval for i in range(num_iterations)]
+    #     return [bottom + i*interval for i in range(num_iterations)]
 
 
 class IndirectKineticModel(KineticModel):

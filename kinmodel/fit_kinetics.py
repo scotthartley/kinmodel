@@ -105,14 +105,14 @@ def fit_kinetics():
         type=float, default=5)
     parser.add_argument(
         "-cci", "--confidence_contour_intervals",
-        help=("Number of intervals to be used in generating confidence "
-              "contour plots for pairs of parameters (default=None)"),
+        help=("Number of points per side in confidence contour plots "
+              "(default=None)"),
         type=int, default=None)
     parser.add_argument(
         "-ccm", "--confidence_contour_multiplier",
-        help=("Number of CIs to use around parameters in confidence contour "
-              "plots (default=5)"),
-        type=float, default=5)
+        help=("Maximum variation of each parameter to consider in confidence "
+              "contour plots, as multiple (default=2)"),
+        type=float, default=2)
     parser.add_argument(
         "-cccs", "--confidence_contour_concs",
         help=("Include fit concentrations in confidence contours"),

@@ -766,17 +766,6 @@ class KineticModel:
                          + [curr_par + delta*(n+1) for n in range(cp_points)])
             new_pars.sort()
 
-            # Non-parallelized code.
-            # par_var_results = []
-            # for new_par in tqdm(new_pars, disable=not monitor, leave=False):
-                # fit_results = scipy.optimize.least_squares(
-                #         self._residual_fix, other_pars,
-                #         bounds=self.bounds,
-                #         args=(other_pars_ind, [new_par],
-                #               [par_num], datasets,
-                #               reg_info['parameter_constants'], False))
-                # ssr = fit_results.cost * 2
-
             # Generate the initial data.
             cp_results = Parallel(n_jobs=nodes)(
                     delayed(_results)((ps, par_num, other_pars,
@@ -946,62 +935,6 @@ class KineticModel:
             print(f'"{model_name}" is not a valid model.')
             print(", ".join(a for a in all_models), "are currently available.")
             sys.exit(1)
-
-    # def _bracket_param(self, param, low, high, num_iterations, cc_mult=2):
-    #     """Used to generated confidence contours. Returns the upper and
-    #     lower limits that should be used for a given value of param and
-    #     high and low CIs.
-    #     """
-    #     delta_high = high - param
-    #     delta_low = param - low
-    #     delta = cc_mult*max(delta_high, delta_low)
-
-    #     # We want the CCs to always include the actual optimized param,
-    #     # ideally in the center but offset if the parameter would be
-    #     # outside of the bounds. If an even number of iterations is
-    #     # specified, such that there is no exact center of the plot, the
-    #     # range favors the high end.
-
-    #     if ((param + delta) <= self.bounds[1] and
-    #             (param - delta) >= self.bounds[0]):
-    #         if num_iterations % 2 == 1:
-    #             interval = 2*delta/(num_iterations - 1)
-    #             bottom = param - (num_iterations-1)/2 * interval
-    #         else:
-    #             interval = 2*delta/num_iterations
-    #             bottom = param - (num_iterations/2 - 1) * interval
-    #     elif ((self.bounds[0] + 2*delta) <= self.bounds[1] and
-    #             (param - delta) < self.bounds[0]):
-    #         # Bounded on low end.
-    #         max_interval = 2*delta/(num_iterations - 1)
-    #         # Integer number of intervals to the actual param value.
-    #         n_to_p = math.ceil((param - self.bounds[0])/max_interval)
-    #         interval = (param - self.bounds[0])/n_to_p
-    #         bottom = self.bounds[0]
-    #     elif ((param + delta) > self.bounds[1] and
-    #             (self.bounds[1] - 2*delta) >= self.bounds[0]):
-    #         # Bounded on high end.
-    #         max_interval = 2*delta/(num_iterations - 1)
-    #         n_to_p = math.ceil((self.bounds[1] - param)/max_interval)
-    #         interval = (self.bounds[1] - param)/n_to_p
-    #         bottom = self.bounds[1] - (num_iterations-1)*interval
-    #     else:
-    #         # Bounded on both sides.
-    #         max_interval = (self.bounds[1] - self.bounds[0])/(num_iterations - 1)
-    #         n_to_p_low = (param - self.bounds[0])/max_interval
-    #         n_to_p_high = (self.bounds[1] - param)/max_interval
-    #         if (n_to_p_low % 1) < (n_to_p_high % 1):
-    #             n_to_p = math.ceil(n_to_p_low)
-    #         else:
-    #             n_to_p = math.floor(n_to_p_low)
-    #         interval = (param - self.bounds[0])/n_to_p
-    #         bottom = param - n_to_p*interval
-
-    #     assert ((bottom >= self.bounds[0])
-    #             and (bottom + interval*(num_iterations - 1)))
-
-    #     return [bottom + i*interval for i in range(num_iterations)]
-
 
 class IndirectKineticModel(KineticModel):
     """Defines an indirect kinetic model: one in which the observed data

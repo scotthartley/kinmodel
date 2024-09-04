@@ -434,14 +434,8 @@ def generate_cp_plot(param_data, reg_info, output_base_filename, threshold):
     # Draw lines at the optimized ssr and the ssr + threshold.
     original_error_func = reg_info['ssr']
     minimum_index = int(np.array(ydata).argmin())
-    # plt.hlines(original_error_func, xdata[0], xdata[-1], colors=CP_COLOR,
-    #         linestyles=CP_SSR_LINE, label=CP_ERR_LABEL)
-    # plt.plot([xdata[0], xdata[-1]], [original_error_func, original_error_func],
-    #         CP_ERR_STYLE, label=CP_ERR_LABEL)
     target_error_func = original_error_func * (threshold/100 + 1)
     threshold_label = f"{CP_ERR_THRESHOLD} {threshold}%"
-    # plt.hlines(target_error_func, xdata[0], xdata[-1], colors=CP_COLOR,
-    #         linestyles=CP_TARGET_LINE, label=threshold_label)
     plt.plot([xdata[0], xdata[-1]], [target_error_func, target_error_func],
             CP_ERR_THRESH_STYLE, label=threshold_label)
     plt.scatter([xdata[minimum_index]], [ydata[minimum_index]],
@@ -492,7 +486,6 @@ def generate_cc_plot(pair, reg_info, output_base_filename,
     # Generate contour plot
     if output_contour_plot:
         plt.figure(figsize=FIGURE_SIZE_1)
-        # cp = plt.contour(X, Y, Z, CONTOUR_LEVELS, colors='black')
         cpf = plt.contourf(X, Y, Z, CONTOUR_LEVELS)
         plt.colorbar(cpf, ticks=CONTOUR_TICKS)
         plt.xlabel(pair[0][0])
@@ -503,8 +496,6 @@ def generate_cc_plot(pair, reg_info, output_base_filename,
 
     # Generate heatmap
     plt.figure(figsize=FIGURE_SIZE_1)
-    # hm = plt.imshow(Z, extent=[X[0], X[-1], Y[0], Y[-1]], aspect='auto',
-    #                 vmax=CONTOUR_LEVELS[-1], vmin=CONTOUR_LEVELS[0])
     hm = plt.imshow(Z, aspect='auto',
                     vmax=CONTOUR_LEVELS[-1], vmin=CONTOUR_LEVELS[0])
     ax = plt.gca()

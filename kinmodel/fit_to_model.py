@@ -47,7 +47,6 @@ CONTOUR_LEVELS = [0.5, 0.52, 0.54, 0.56, 0.58, 0.6, 0.62, 0.64, 0.66, 0.68,
                   0.7, 0.72, 0.74, 0.76, 0.78, 0.8, 0.82, 0.84, 0.86, 0.88,
                   0.9, 0.92, 0.94, 0.96, 0.98, 1.00]
 CONTOUR_TICKS = [0, 0.25, 0.5, 0.75, 1.0]
-TICK_ALIGN_THRESHOLD = 10
 
 PLT_PARAMS = {'font.size': 8,
               'font.family': 'sans-serif',
@@ -279,82 +278,82 @@ def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
         boot_ts = reg_info['boot_plot_ts'][ds_num]
 
     if model.top_plot:
-        plt.figure(figsize=FIGURE_SIZE_2)
+        fig = plt.figure(figsize=FIGURE_SIZE_2)
     else:
-        plt.figure(figsize=FIGURE_SIZE_1)
+        fig = plt.figure(figsize=FIGURE_SIZE_1)
 
     if model.top_plot:
-        plt.subplot(211)
+        ax1 = plt.subplot(211)
         col = 0
         for n in ([np.array(reg_info['dataset_concs'][ds_num]).T[m]
                    for m in model.top_plot]):
-            plt.scatter(
+            ax1.scatter(
                     reg_info['dataset_times'][ds_num], n, c=COLORS[col],
                     s=MARKER_SIZE, linewidths=0)
             col += 1
 
         col = 0
         for n in [smooth_curves_plot.T[m] for m in model.top_plot]:
-            plt.plot(smooth_ts_plot, n, COLORS[col] + '-')
+            ax1.plot(smooth_ts_plot, n, COLORS[col] + '-')
             col += 1
 
         if 'boot_num' in reg_info and boot_CI:
             col = 0
             for n in [boot_CI_plots[0].T[m] for m in model.top_plot]:
-                plt.plot(boot_ts, n, COLORS[col] + ':')
+                ax1.plot(boot_ts, n, COLORS[col] + ':')
                 col += 1
             col = 0
             for n in [boot_CI_plots[1].T[m] for m in model.top_plot]:
-                plt.plot(boot_ts, n, COLORS[col] + ':')
+                ax1.plot(boot_ts, n, COLORS[col] + ':')
                 col += 1
 
-        plt.legend([model.legend_names[n] for n in model.top_plot], loc=4)
+        ax1.legend([model.legend_names[n] for n in model.top_plot])
 
         if common_y:
-            _, y_buffer = plt.margins()
+            _, y_buffer = fig.margins()
             ymax = max(
                     max(reg_info['max_exp_concs'][n] for n in model.top_plot),
                     max(reg_info['max_pred_concs'][n] for n in model.top_plot)
                     )*(1 + y_buffer)
-            plt.ylim(ymin=0, ymax=ymax)
+            ax1.set_ylim(ymin=0, ymax=ymax)
         else:
-            plt.ylim(ymin=0)
-        plt.xlim(xmin=0, xmax=smooth_ts_plot[-1])
+            ax1.set_ylim(ymin=0)
+        ax1.set_xlim(xmin=0, xmax=smooth_ts_plot[-1])
 
         if units:
-            plt.ylabel(f"{YLABEL} ({units[1]})")
+            ax1.set_ylabel(f"{YLABEL} ({units[1]})")
         else:
-            plt.ylabel(YLABEL)
+            ax1.set_ylabel(YLABEL)
 
     if model.bottom_plot:
         if model.top_plot:
-            plt.subplot(212)
+            ax2 = plt.subplot(212)
         else:
-            plt.subplot(111)
+            ax2 = plt.subplot(111)
 
         col = 0
         for n in ([np.array(reg_info['dataset_concs'][ds_num]).T[m]
                    for m in model.bottom_plot]):
-            plt.scatter(reg_info['dataset_times'][ds_num], n, c=COLORS[col],
+            ax2.scatter(reg_info['dataset_times'][ds_num], n, c=COLORS[col],
                         s=MARKER_SIZE, linewidths=0, zorder=2)
             col += 1
 
         col = 0
         for n in [smooth_curves_plot.T[n] for n in model.bottom_plot]:
-            plt.plot(smooth_ts_plot, n, COLORS[col] + '-', zorder=3)
+            ax2.plot(smooth_ts_plot, n, COLORS[col] + '-', zorder=3)
             col += 1
 
         if 'boot_num' in reg_info and boot_CI:
             col = 0
             for n in [boot_CI_plots[0].T[m] for m in model.bottom_plot]:
-                plt.plot(boot_ts, n, COLORS[col] + ':')
+                ax2.plot(boot_ts, n, COLORS[col] + ':')
                 col += 1
             col = 0
             for n in [boot_CI_plots[1].T[m] for m in model.bottom_plot]:
-                plt.plot(boot_ts, n, COLORS[col] + ':')
+                ax2.plot(boot_ts, n, COLORS[col] + ':')
                 col += 1
 
-        plt.legend([model.legend_names[n] for n in model.bottom_plot], loc=2)
+        ax2.legend([model.legend_names[n] for n in model.bottom_plot])
 
         if common_y:
             _, y_buffer = plt.margins()
@@ -362,17 +361,17 @@ def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
                     max(reg_info['max_exp_concs'][n] for n in model.bottom_plot),
                     max(reg_info['max_pred_concs'][n] for n in model.bottom_plot)
                     )*(1 + y_buffer)
-            plt.ylim(ymin=0, ymax=ymax)
+            ax2.set_ylim(ymin=0, ymax=ymax)
         else:
-            plt.ylim(ymin=0)
-        plt.xlim(xmin=0, xmax=smooth_ts_plot[-1])
+            ax2.set_ylim(ymin=0)
+        ax2.set_xlim(xmin=0, xmax=smooth_ts_plot[-1])
 
         if units:
-            plt.xlabel(f"{XLABEL} ({units[0]})")
-            plt.ylabel(f"{YLABEL} ({units[1]})")
+            ax2.set_xlabel(f"{XLABEL} ({units[0]})")
+            ax2.set_ylabel(f"{YLABEL} ({units[1]})")
         else:
-            plt.xlabel(XLABEL)
-            plt.ylabel(YLABEL)
+            ax2.set_xlabel(XLABEL)
+            ax2.set_ylabel(YLABEL)
 
         # Print parameters on plot.
         if not no_params:
@@ -384,13 +383,13 @@ def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
                 pars_to_print += "{} = {:.2e}\n".format(
                         model.constant_names[n], dataset_consts[n])
 
-            plt.text(PARAM_LOC[0], PARAM_LOC[1], pars_to_print,
-                     transform=plt.gca().transAxes,
+            ax2.text(PARAM_LOC[0], PARAM_LOC[1], pars_to_print,
+                     transform=ax2.transAxes,
                      fontsize=rcParams['legend.fontsize'])
 
-    plt.tight_layout()
+    fig.tight_layout()
     plt.savefig(output_filename)
-    plt.close()
+    plt.close(fig)
 
 
 def prepare_conf_contours(pair):
@@ -426,19 +425,21 @@ def generate_cp_plot(param_data, reg_info, output_base_filename, threshold):
     xdata = [p[0] for p in param_data[1]]
     ydata = [p[1] for p in param_data[1]]
 
-    plt.figure(figsize=FIGURE_SIZE_1)
+    fig = plt.figure(figsize=FIGURE_SIZE_1)
+    ax = plt.axes()
 
     # Draw the data as scatter plot
-    plt.plot(xdata, ydata, CP_STYLE, markersize=MARKER_SIZE**0.5)
+    ax.plot(xdata, ydata, CP_STYLE, markersize=MARKER_SIZE**0.5)
 
-    # Draw lines at the optimized ssr and the ssr + threshold.
+    # Draw line at the ssr + threshold.
     original_error_func = reg_info['ssr']
     minimum_index = int(np.array(ydata).argmin())
     target_error_func = original_error_func * (threshold/100 + 1)
     threshold_label = f"{CP_ERR_THRESHOLD} {threshold}%"
-    plt.plot([xdata[0], xdata[-1]], [target_error_func, target_error_func],
+    ax.plot([xdata[0], xdata[-1]], [target_error_func, target_error_func],
             CP_ERR_THRESH_STYLE, label=threshold_label)
-    plt.scatter([xdata[minimum_index]], [ydata[minimum_index]],
+    # Highlight the minimum point.
+    ax.scatter([xdata[minimum_index]], [ydata[minimum_index]],
             s = CP_HIGHLIGHT_SIZE, edgecolor=CP_HIGHLIGHT_COLOR,
             c=CP_HIGHLIGHT_FILL, linewidth=CP_HIGHLIGHT_LINEWIDTH)
 
@@ -446,15 +447,15 @@ def generate_cp_plot(param_data, reg_info, output_base_filename, threshold):
     max_y = original_error_func * (CP_Y_MAX_MULT*threshold/100 + 1)
     min_y = original_error_func * (1 - CP_Y_MIN_MULT*threshold/100)
     if max(ydata) > max_y:
-        plt.ylim(bottom=min_y, top=max_y)
+        ax.set_ylim(bottom=min_y, top=max_y)
 
-    plt.ylabel(CP_Y_LABEL)
-    plt.xlabel(name)
-    plt.legend()
+    ax.set_ylabel(CP_Y_LABEL)
+    ax.set_xlabel(name)
+    fig.legend()
 
-    plt.tight_layout()
-    plt.savefig(output_base_filename + "_cp.pdf")
-    plt.close()
+    fig.tight_layout()
+    fig.savefig(output_base_filename + "_cp.pdf")
+    plt.close(fig)
 
 
 def generate_cc_plot(pair, reg_info, output_base_filename,
@@ -485,44 +486,37 @@ def generate_cc_plot(pair, reg_info, output_base_filename,
 
     # Generate contour plot
     if output_contour_plot:
-        plt.figure(figsize=FIGURE_SIZE_1)
-        cpf = plt.contourf(X, Y, Z, CONTOUR_LEVELS)
-        plt.colorbar(cpf, ticks=CONTOUR_TICKS)
-        plt.xlabel(pair[0][0])
-        plt.ylabel(pair[0][1])
-        plt.tight_layout()
-        plt.savefig(output_base_filename + "_c.pdf")
-        plt.close()
+        fig = plt.figure(figsize=FIGURE_SIZE_1)
+        ax = plt.axes()
+        cpf = ax.contourf(X, Y, Z, CONTOUR_LEVELS)
+        fig.colorbar(cpf, ticks=CONTOUR_TICKS)
+        ax.set_xlabel(pair[0][0])
+        ax.set_ylabel(pair[0][1])
+        fig.tight_layout()
+        fig.savefig(output_base_filename + "_c.pdf")
+        plt.close(fig)
 
     # Generate heatmap
-    plt.figure(figsize=FIGURE_SIZE_1)
-    hm = plt.imshow(Z, aspect='auto',
+    fig = plt.figure(figsize=FIGURE_SIZE_1)
+    ax = plt.axes()
+    hm = ax.imshow(Z, aspect='auto',
                     vmax=CONTOUR_LEVELS[-1], vmin=CONTOUR_LEVELS[0])
-    ax = plt.gca()
     ax.set_xticks([0, x_min_loc, len(X)-1])
     ax.set_xticklabels([f"{X[0]:.1e}", f"{X[x_min_loc]:.1e}", f"{X[-1]:.1e}"])
     ax.set_yticks([0, y_min_loc, len(Y)-1])
     ax.set_yticklabels([f"{Y[0]:.1e}", f"{Y[y_min_loc]:.1e}", f"{Y[-1]:.1e}"])
-    plt.colorbar(hm, ticks=CONTOUR_TICKS)
-    if num_points > TICK_ALIGN_THRESHOLD:
-        plt.setp(ax.get_yticklabels()[0], rotation=90, ha="left", rotation_mode="anchor")
-        plt.setp(ax.get_yticklabels()[-1], rotation=90, ha="right", rotation_mode="anchor")
-        plt.setp(ax.get_xticklabels()[0], ha="left", rotation_mode="anchor")
-        plt.setp(ax.get_xticklabels()[-1], ha="right", rotation_mode="anchor")
-    else:
-        plt.setp(ax.get_yticklabels()[0], rotation=90, ha="center", rotation_mode="anchor")
-        plt.setp(ax.get_yticklabels()[-1], rotation=90, ha="center", rotation_mode="anchor")
+    fig.colorbar(hm, ticks=CONTOUR_TICKS)
 
     # Draw box around lowest value.
     # square = patches.Rectangle((x_min_loc-0.5, y_min_loc-0.5), 1, 1,
     #         ec=CC_BOX_COLOR, fill=False, linestyle=CC_BOX_LINE)
     # ax.add_patch(square)
 
-    plt.xlabel(pair[0][0])
-    plt.ylabel(pair[0][1])
-    plt.tight_layout()
-    plt.savefig(output_base_filename + '_hm.pdf')
-    plt.close()
+    ax.set_xlabel(pair[0][0])
+    ax.set_ylabel(pair[0][1])
+    fig.tight_layout()
+    fig.savefig(output_base_filename + '_hm.pdf')
+    plt.close(fig)
 
 
 def fit_and_output(

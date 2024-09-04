@@ -22,13 +22,17 @@ CP_ERR_STYLE = '-' + CP_COLOR
 CP_ERR_THRESH_STYLE = ':' + CP_COLOR
 CP_SSR_LINE = 'solid'
 CP_TARGET_LINE = 'dotted'
+CP_HIGHLIGHT_SIZE = (plt.rcParams['lines.markersize']*1.1)**2
+CP_HIGHLIGHT_COLOR = 'k'
+CP_HIGHLIGHT_FILL = ('k', 0)
+CP_HIGHLIGHT_LINEWIDTH = 0.5
 CP_Y_LABEL = "Error function"
 CP_ERR_LABEL = "Error function when optimized"
 CP_ERR_THRESHOLD = "Error function +"
 CP_Y_MAX_MULT = 20
 CP_Y_MIN_MULT = 0.5
-CC_BOX_COLOR = 'y'
-CC_BOX_LINE = ':'
+# CC_BOX_COLOR = 'y'
+# CC_BOX_LINE = ':'
 MARKER_SIZE = 12
 FIGURE_SIZE_1 = (3.3, 3)
 FIGURE_SIZE_2 = (3.3, 5.2)
@@ -429,16 +433,20 @@ def generate_cp_plot(param_data, reg_info, output_base_filename, threshold):
 
     # Draw lines at the optimized ssr and the ssr + threshold.
     original_error_func = reg_info['ssr']
+    minimum_index = int(np.array(ydata).argmin())
     # plt.hlines(original_error_func, xdata[0], xdata[-1], colors=CP_COLOR,
     #         linestyles=CP_SSR_LINE, label=CP_ERR_LABEL)
-    plt.plot([xdata[0], xdata[-1]], [original_error_func, original_error_func],
-            CP_ERR_STYLE, label=CP_ERR_LABEL)
+    # plt.plot([xdata[0], xdata[-1]], [original_error_func, original_error_func],
+    #         CP_ERR_STYLE, label=CP_ERR_LABEL)
     target_error_func = original_error_func * (threshold/100 + 1)
     threshold_label = f"{CP_ERR_THRESHOLD} {threshold}%"
     # plt.hlines(target_error_func, xdata[0], xdata[-1], colors=CP_COLOR,
     #         linestyles=CP_TARGET_LINE, label=threshold_label)
     plt.plot([xdata[0], xdata[-1]], [target_error_func, target_error_func],
             CP_ERR_THRESH_STYLE, label=threshold_label)
+    plt.scatter([xdata[minimum_index]], [ydata[minimum_index]],
+            s = CP_HIGHLIGHT_SIZE, edgecolor=CP_HIGHLIGHT_COLOR,
+            c=CP_HIGHLIGHT_FILL, linewidth=CP_HIGHLIGHT_LINEWIDTH)
 
     # Restrict maximum extent of y-axis
     max_y = original_error_func * (CP_Y_MAX_MULT*threshold/100 + 1)

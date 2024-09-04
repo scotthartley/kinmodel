@@ -6,7 +6,8 @@ import platform
 import numpy as np
 import scipy
 import pickle
-from matplotlib import pyplot as plt, rcParams
+import math
+from matplotlib import pyplot as plt, patches as patches, rcParams
 from . import _version
 from .Dataset import Dataset
 from .simulate_model import simulate_and_output
@@ -25,6 +26,8 @@ CP_ERR_LABEL = "Error function when optimized"
 CP_ERR_THRESHOLD = "Error function +"
 CP_Y_MAX_MULT = 20
 CP_Y_MIN_MULT = 0.5
+CC_BOX_COLOR = 'y'
+CC_BOX_LINE = ':'
 MARKER_SIZE = 12
 FIGURE_SIZE_1 = (3.3, 3)
 FIGURE_SIZE_2 = (3.3, 5.2)
@@ -464,6 +467,13 @@ def generate_cc_plot(pair, reg_info, output_base_filename,
     ylist = data[:, 1]
     zlist = data[:, 2]
     num_points = int(len(xlist)**0.5)
+
+    # Find the location of the point with lowest error function.
+    z_min_index = int(zlist.argmin())
+    # Coordinates along x and y axes of the minimum z.
+    y_min_loc = z_min_index % num_points
+    x_min_loc = math.floor(z_min_index / num_points)
+
     # Plotted data is actually the normalized inverse of the ssr.
     zlist_inv = reg_info['ssr']/zlist
     X = [xlist[n] for n in range(0, len(xlist), num_points)]
@@ -502,6 +512,12 @@ def generate_cc_plot(pair, reg_info, output_base_filename,
     else:
         plt.setp(ax.get_yticklabels()[0], rotation=90, ha="center", rotation_mode="anchor")
         plt.setp(ax.get_yticklabels()[-1], rotation=90, ha="center", rotation_mode="anchor")
+
+    # Draw box around lowest value.
+    square = patches.Rectangle((x_min_loc-0.5, y_min_loc-0.5), 1, 1,
+            ec=CC_BOX_COLOR, fill=False, linestyle=CC_BOX_LINE)
+    plt.gca().add_patch(square)
+
     plt.xlabel(pair[0][0])
     plt.ylabel(pair[0][1])
     plt.tight_layout()

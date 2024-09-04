@@ -466,7 +466,7 @@ class KineticModel:
         return reg_info
 
     def confidence_contours(self, reg_info, datasets, num_datasets,
-                            num_intervals, cc_mult=2.0, monitor=False,
+                            points_per_side, cc_mult=2.0, monitor=False,
                             nodes=-1, include_cs=False):
         """Generates confidence contour data around each pair of fit
         parameters.
@@ -506,6 +506,12 @@ class KineticModel:
         else:  # Only ks are included.
             all_parameter_names = self.k_var_names
             total_num_params = self.num_var_ks
+
+
+        # Forces num_intervals to satisfy points = m*x + 1, where m is
+        # cc_mult. Ensures that plot always contains the optimized value
+        # of each parameter.
+        num_intervals = int(math.ceil((points_per_side - 1)/cc_mult)*cc_mult + 1)
 
         results = []
         for p1_ind in range(total_num_params-1):

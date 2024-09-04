@@ -7,7 +7,8 @@ import numpy as np
 import scipy
 import pickle
 import math
-from matplotlib import pyplot as plt, patches as patches, rcParams
+from matplotlib import pyplot as plt, rcParams
+# from matplotlib import patches as patches
 from . import _version
 from .Dataset import Dataset
 from .simulate_model import simulate_and_output
@@ -499,10 +500,10 @@ def generate_cc_plot(pair, reg_info, output_base_filename,
     hm = plt.imshow(Z, aspect='auto',
                     vmax=CONTOUR_LEVELS[-1], vmin=CONTOUR_LEVELS[0])
     ax = plt.gca()
-    ax.set_xticks([0, len(X)-1])
-    ax.set_xticklabels([f"{X[0]:.1e}", f"{X[-1]:.1e}"])
-    ax.set_yticks([0, len(Y)-1])
-    ax.set_yticklabels([f"{Y[0]:.1e}", f"{Y[-1]:.1e}"])
+    ax.set_xticks([0, x_min_loc, len(X)-1])
+    ax.set_xticklabels([f"{X[0]:.1e}", f"{X[x_min_loc]:.1e}", f"{X[-1]:.1e}"])
+    ax.set_yticks([0, y_min_loc, len(Y)-1])
+    ax.set_yticklabels([f"{Y[0]:.1e}", f"{Y[y_min_loc]:.1e}", f"{Y[-1]:.1e}"])
     plt.colorbar(hm, ticks=CONTOUR_TICKS)
     if num_points > TICK_ALIGN_THRESHOLD:
         plt.setp(ax.get_yticklabels()[0], rotation=90, ha="left", rotation_mode="anchor")
@@ -514,9 +515,9 @@ def generate_cc_plot(pair, reg_info, output_base_filename,
         plt.setp(ax.get_yticklabels()[-1], rotation=90, ha="center", rotation_mode="anchor")
 
     # Draw box around lowest value.
-    square = patches.Rectangle((x_min_loc-0.5, y_min_loc-0.5), 1, 1,
-            ec=CC_BOX_COLOR, fill=False, linestyle=CC_BOX_LINE)
-    plt.gca().add_patch(square)
+    # square = patches.Rectangle((x_min_loc-0.5, y_min_loc-0.5), 1, 1,
+    #         ec=CC_BOX_COLOR, fill=False, linestyle=CC_BOX_LINE)
+    # ax.add_patch(square)
 
     plt.xlabel(pair[0][0])
     plt.ylabel(pair[0][1])

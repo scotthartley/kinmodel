@@ -425,7 +425,7 @@ class KineticModel:
             param_CIs = self.bootstrap_param_CIs(reg_info, d, boot_CI)
             boot_CIs, boot_calc_CIs, boot_ts = self.bootstrap_plot_CIs(
                     reg_info, d, boot_CI, boot_points, boot_t_exp,
-                    monitor=False)
+                    monitor=monitor)
             return d, param_CIs, boot_CIs, boot_calc_CIs, boot_ts
 
         reg_info['boot_num'] = N_boot
@@ -442,15 +442,9 @@ class KineticModel:
                         reg_info['parameter_constants'], monitor,
                         nodes=boot_nodes))
 
-        if monitor:
-            print("Bootstrapping simulations:")
-            boot_CI_results = Parallel(n_jobs=boot_nodes)(
-                    delayed(_sim_boot)(d)
-                            for d in tqdm(list(range(reg_info['num_datasets']))))
-        else:
-            boot_CI_results = Parallel(n_jobs=boot_nodes)(
-                    delayed(_sim_boot)(d)
-                            for d in list(range(reg_info['num_datasets'])))
+        boot_CI_results = Parallel(n_jobs=boot_nodes)(
+                delayed(_sim_boot)(d)
+                for d in list(range(reg_info['num_datasets'])))
 
         reg_info['boot_CI'] = boot_CI
         reg_info['boot_param_CIs'] = []
@@ -537,24 +531,18 @@ class KineticModel:
                 p_combos = [p for p in itertools.product(p1_vals, p2_vals)]
                 total_p_combos = len(p_combos)
 
-                if monitor:
-                    print(f"Confidence contours for "
-                          f"{all_parameter_names[p1_ind]} and "
-                          f"{all_parameter_names[p2_ind]}:")
-                    cc_results = Parallel(n_jobs=nodes)(
-                            delayed(_results)((ps, p1_ind, p2_ind, var_params,
-                                           var_params_ind)) for ps in tqdm(p_combos))
-                    results.append([(all_parameter_names[p1_ind],
-                                     all_parameter_names[p2_ind]),
-                                     cc_results])
-                else:
-                    cc_results = Parallel(n_jobs=nodes)(
-                            delayed(_results)((ps, p1_ind, p2_ind, var_params,
-                                           var_params_ind)) for ps in p_combos)
-                    results.append([(all_parameter_names[p1_ind],
-                                     all_parameter_names[p2_ind]),
-                                     cc_results])
-
+                tqdm_text = (f"Confidence contours for "
+                             f"{all_parameter_names[p1_ind]} and "
+                             f"{all_parameter_names[p2_ind]}")
+                cc_results = Parallel(n_jobs=nodes)(
+                        delayed(_results)((ps, p1_ind, p2_ind, var_params,
+                                       var_params_ind)) for ps in
+                                       tqdm(p_combos, desc=tqdm_text,
+                                            disable= not monitor,
+                                            leave=False))
+                results.append([(all_parameter_names[p1_ind],
+                                 all_parameter_names[p2_ind]),
+                                 cc_results])
         return results
 
     def _pure_residuals(self, datasets, reg_info, parameter_constants):
@@ -603,13 +591,10 @@ class KineticModel:
         total_datasets = len(all_datasets)
         num_datasets = len(all_datasets[0])
 
-        if monitor:
-            print("Bootstrapping fits:")
-            boot_params = Parallel(n_jobs=nodes)(
-                    delayed(_results)(d) for d in tqdm(all_datasets))
-        else:
-            boot_params = Parallel(n_jobs=nodes)(
-                    delayed(_results)(d) for d in all_datasets)
+        boot_params = Parallel(n_jobs=nodes)(
+                delayed(_results)(d) for d in tqdm(all_datasets,
+                        desc="Bootstrapping",
+                        disable = not monitor, leave=False))
 
         boot_fit_ks = []
         boot_fit_concs = [[] for _ in range(num_datasets)]
@@ -650,10 +635,9 @@ class KineticModel:
         plot_botCI = np.empty((0, num_points, self.num_data_concs))
         calc_topCI = [np.empty(0) for _ in range(self.num_calcs)]
         calc_botCI = [np.empty(0) for _ in range(self.num_calcs)]
-        for n in range(boot_iterations):
-            if monitor:
-                print(f"Bootstrapping simulation {n+1} "
-                      f"of {reg_info['boot_num']}", end="")
+        for n in tqdm(range(boot_iterations),
+                desc=f"Bootstrap sim. dataset {dataset_n}", position=dataset_n,
+                disable=not monitor, leave=False):
             _, boot_plot, _, boot_calcs = self.simulate(
                     list(reg_info['boot_fit_ks'][n]) + reg_info['fixed_ks'],
                     (list(reg_info['boot_fit_concs'][dataset_n][n])
@@ -672,15 +656,11 @@ class KineticModel:
             else:
                 if not np.all(
                         np.maximum(plot_topCI[0], boot_plot) == plot_topCI[0]):
-                    if monitor:
-                        print(', top CI increased', end="")
                     plot_topCI = np.append(plot_topCI, [boot_plot], axis=0)
                     plot_topCI = np.sort(plot_topCI, axis=0)
                     plot_topCI = plot_topCI[1:]
                 if not np.all(
                         np.minimum(plot_botCI[-1], boot_plot) == plot_botCI[-1]):
-                    if monitor:
-                        print(', bottom CI decreased', end="")
                     plot_botCI = np.append(plot_botCI, [boot_plot], axis=0)
                     plot_botCI = np.sort(plot_botCI, axis=0)
                     plot_botCI = plot_botCI[:-1]
@@ -693,8 +673,6 @@ class KineticModel:
                         calc_botCI[i] = np.append(calc_botCI[i], boot_calcs[i][1])
                         calc_botCI[i] = np.sort(calc_botCI[i])
                         calc_botCI[i] = calc_botCI[i][:-1]
-            if monitor:
-                print()
 
         calc_top_cutoffs = [c[0] for c in calc_topCI]
         calc_bot_cutoffs = [c[0] for c in calc_botCI]
@@ -749,8 +727,6 @@ class KineticModel:
         # others to determine the confidence plot.
         for par_num in range(len(params)):
             curr_param_name = parameter_names[par_num]
-            if monitor:
-                print(f"Confidence plot for {curr_param_name}:")
             # Isolate the current parameter from the overall list.
             curr_par = params[par_num]
             other_pars = params.copy()
@@ -767,10 +743,11 @@ class KineticModel:
             new_pars.sort()
 
             # Generate the initial data.
+            tqdm_text = f"Confidence plot for {curr_param_name}"
             cp_results = Parallel(n_jobs=nodes)(
                     delayed(_results)((ps, par_num, other_pars,
                             other_pars_ind)) for ps in tqdm(new_pars,
-                            disable=not monitor, leave=True))
+                            disable=not monitor, desc=tqdm_text, leave=False))
 
             # If error function at highest considered value is not above
             # the threshold, add additional points and keep going until
@@ -779,11 +756,12 @@ class KineticModel:
             while ((cp_results[-1][1] - opt_ssr)/opt_ssr*100 < cp_threshold
                     and cp_results[-1][0] < cp_max_mult*curr_par):
                 new_pars = [cp_results[-1][0] + delta*(n+1) for n in range(cp_points)]
-                if monitor: print("--Additional points required.")
+                tqdm_text = f"Confidence plot for {curr_param_name} (more points)"
                 cp_results += Parallel(n_jobs=nodes)(
                         delayed(_results)((ps, par_num, other_pars,
                                 other_pars_ind)) for ps in tqdm(new_pars,
-                                disable=not monitor, leave=True))
+                                disable=not monitor, desc=tqdm_text,
+                                leave=False))
 
             # Add the results for the current parameter to the output.
             output.append([curr_param_name, cp_results])

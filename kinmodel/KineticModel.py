@@ -260,7 +260,7 @@ class KineticModel:
                     integral_func.append(self.int_eqn[i](cs, all_ks))
                 integrals.append(
                         (self.int_eqn_desc[i],
-                         scipy.integrate.simps(integral_func, dx=deltaT)))
+                         scipy.integrate.simpson(integral_func, dx=deltaT)))
         else:
             integrals = None
 

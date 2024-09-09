@@ -539,7 +539,7 @@ class KineticModel:
                                        var_params_ind)) for ps in
                                        tqdm(p_combos, desc=tqdm_text,
                                             disable= not monitor,
-                                            leave=False))
+                                            leave=True))
                 results.append([(all_parameter_names[p1_ind],
                                  all_parameter_names[p2_ind]),
                                  cc_results])
@@ -594,7 +594,7 @@ class KineticModel:
         boot_params = Parallel(n_jobs=nodes)(
                 delayed(_results)(d) for d in tqdm(all_datasets,
                         desc="Bootstrapping",
-                        disable = not monitor, leave=False))
+                        disable = not monitor, leave=True))
 
         boot_fit_ks = []
         boot_fit_concs = [[] for _ in range(num_datasets)]
@@ -747,7 +747,7 @@ class KineticModel:
             cp_results = Parallel(n_jobs=nodes)(
                     delayed(_results)((ps, par_num, other_pars,
                             other_pars_ind)) for ps in tqdm(new_pars,
-                            disable=not monitor, desc=tqdm_text, leave=False))
+                            disable=not monitor, desc=tqdm_text, leave=True))
 
             # If error function at highest considered value is not above
             # the threshold, add additional points and keep going until
@@ -761,7 +761,7 @@ class KineticModel:
                         delayed(_results)((ps, par_num, other_pars,
                                 other_pars_ind)) for ps in tqdm(new_pars,
                                 disable=not monitor, desc=tqdm_text,
-                                leave=False))
+                                leave=True))
 
             # Add the results for the current parameter to the output.
             output.append([curr_param_name, cp_results])

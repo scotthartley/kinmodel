@@ -451,7 +451,7 @@ def generate_cp_plot(param_data, reg_info, output_base_filename, threshold):
 
     ax.set_ylabel(CP_Y_LABEL)
     ax.set_xlabel(name)
-    fig.legend()
+    ax.legend()
 
     fig.tight_layout()
     fig.savefig(output_base_filename + "_cp.pdf")

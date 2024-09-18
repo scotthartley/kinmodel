@@ -22,6 +22,7 @@ INDIRECT_DESC_SPACER = "\n\nOriginal model:\n"
 INT_LAMBDA = "lambda c, k: "
 CALC_LAMBDA = "lambda c, t, k, i: "
 CONC_MAP_LAMBDA = ["lambda c: np.array([", "]).transpose()"]
+BOOT_SIM_TQDM_MIN_INTER = 100
 
 np.set_printoptions(threshold=sys.maxsize)
 
@@ -637,7 +638,8 @@ class KineticModel:
         calc_botCI = [np.empty(0) for _ in range(self.num_calcs)]
         for n in tqdm(range(boot_iterations),
                 desc=f"Bootstrap sim. dataset {dataset_n}", position=dataset_n,
-                disable=not monitor, leave=False):
+                disable=not monitor, leave=False,
+                miniters=BOOT_SIM_TQDM_MIN_INTER):
             _, boot_plot, _, boot_calcs = self.simulate(
                     list(reg_info['boot_fit_ks'][n]) + reg_info['fixed_ks'],
                     (list(reg_info['boot_fit_concs'][dataset_n][n])

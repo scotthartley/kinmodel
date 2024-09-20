@@ -639,7 +639,9 @@ class KineticModel:
         for n in tqdm(range(boot_iterations),
                 desc=f"Bootstrap sim. dataset {dataset_n}", position=dataset_n,
                 disable=not monitor, leave=False,
-                miniters=BOOT_SIM_TQDM_MIN_INTER):
+                miniters=BOOT_SIM_TQDM_MIN_INTER,
+                # maxinterval required for miniters to be respected.
+                maxinterval=float('inf')):
             _, boot_plot, _, boot_calcs = self.simulate(
                     list(reg_info['boot_fit_ks'][n]) + reg_info['fixed_ks'],
                     (list(reg_info['boot_fit_concs'][dataset_n][n])

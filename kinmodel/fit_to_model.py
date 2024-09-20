@@ -310,7 +310,7 @@ def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
         ax1.legend([model.legend_names[n] for n in model.top_plot])
 
         if common_y:
-            _, y_buffer = fig.margins()
+            _, y_buffer = ax1.margins()
             ymax = max(
                     max(reg_info['max_exp_concs'][n] for n in model.top_plot),
                     max(reg_info['max_pred_concs'][n] for n in model.top_plot)

@@ -475,13 +475,18 @@ class KineticModel:
             """
             (p1, p2), p1_ind, p2_ind, var_params, var_params_ind = inp
             if len(var_params) > 0:
-                cc_results = scipy.optimize.least_squares(
-                        self._residual_fix, var_params,
-                        bounds=self.bounds,
-                        args=(var_params_ind, [p1, p2],
-                              const_params_ind, datasets,
-                              reg_info['parameter_constants'], False))
-                ssr = cc_results.cost * 2
+                try:
+                    cc_results = scipy.optimize.least_squares(
+                            self._residual_fix, var_params,
+                            bounds=self.bounds,
+                            args=(var_params_ind, [p1, p2],
+                                  const_params_ind, datasets,
+                                  reg_info['parameter_constants'], False))
+                    ssr = cc_results.cost * 2
+                except:
+                    # Set the ssr to infinite if there is a problem
+                    # optimizing.
+                    ssr = np.inf
             else:
             # Accounts for the case where there were only two parameters to
             # begin with, thus there is actually nothing to optimize when

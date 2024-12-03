@@ -423,11 +423,17 @@ class KineticModel:
             """Wrapper function to parallelize bootstrap simulations.
             """
             d = inp
+            sim_time = _max_time(reg_info['dataset_times'])*boot_t_exp
             param_CIs = self.bootstrap_param_CIs(reg_info, d, boot_CI)
             boot_CIs, boot_calc_CIs, boot_ts = self.bootstrap_plot_CIs(
-                    reg_info, d, boot_CI, boot_points, boot_t_exp,
+                    reg_info, d, boot_CI, boot_points, sim_time,
                     monitor=monitor)
             return d, param_CIs, boot_CIs, boot_calc_CIs, boot_ts
+
+        def _max_time(dataset_times):
+            """Given a list of dataset_times, returns the maximum time point.
+            """
+            return max([max(d) for d in dataset_times])
 
         reg_info['boot_num'] = N_boot
 
@@ -626,11 +632,10 @@ class KineticModel:
         return k_CIs, conc_CIs
 
     def bootstrap_plot_CIs(self, reg_info, dataset_n, CI, num_points,
-                           time_exp_factor, monitor=False):
+                           max_time, monitor=False):
         """Returns upper and lower confidence intervals for bootstrapped
         statistics, as an ndarray.
         """
-        max_time = max(reg_info['dataset_times'][dataset_n])*time_exp_factor
         smooth_ts_out, _ = np.linspace(0, max_time, num_points, retstep=True)
 
         boot_iterations = reg_info['boot_num']

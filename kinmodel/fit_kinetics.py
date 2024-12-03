@@ -166,6 +166,10 @@ def fit_kinetics():
         help=("All plots share same max y axis values"),
         action='store_true')
     parser.add_argument(
+        "-cx", "--common_x",
+        help=("All plots share same max x axis values"),
+        action='store_true')
+    parser.add_argument(
         "-np", "--no_parameters",
         help=("Do not print parameters on plots"),
         action='store_true')
@@ -229,6 +233,7 @@ def fit_kinetics():
             confidence_contour_include_ccplot=args.confidence_contour_include_ccplot,
             more_stats=args.more_stats,
             common_y=args.common_y,
+            common_x=args.common_x,
             plot_no_params=args.no_parameters,
             units=args.units,
             simulate=not args.no_simulate_direct,

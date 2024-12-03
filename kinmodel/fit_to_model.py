@@ -66,6 +66,10 @@ PICKLE_SUFFIX = ".pickle"
 np.set_printoptions(linewidth=np.nan)
 np.set_printoptions(precision=2, suppress=True)
 
+def _max_time(dataset_times):
+    """Given a list of dataset_times, returns the maximum time point.
+    """
+    return max([max(d) for d in dataset_times])
 
 def prepare_text(
         model, reg_info, ds_num, num_points, time_exp_factor, filename="",
@@ -76,11 +80,14 @@ def prepare_text(
     integrals must be specified.
 
     """
+
+    sim_time = _max_time(reg_info['dataset_times'])*time_exp_factor
+
     smooth_ts_out, smooth_curves_out, integrals, calculations = model.simulate(
-            reg_info['fit_ks'] + reg_info['fixed_ks'],
-            reg_info['fit_concs'][ds_num] + reg_info['fixed_concs'][ds_num],
-            num_points,
-            time_exp_factor*max(reg_info['dataset_times'][ds_num]),
+            ks=reg_info['fit_ks'] + reg_info['fixed_ks'],
+            concs=reg_info['fit_concs'][ds_num] + reg_info['fixed_concs'][ds_num],
+            num_points=num_points,
+            max_time=sim_time,
             integrate=True, calcs=True)
 
     num_ks = len(reg_info['fit_ks'])
@@ -229,7 +236,7 @@ def prepare_text(
         text += "\n"
         if 'boot_num' in reg_info:
             assert (list(reg_info['boot_plot_ts'][ds_num])
-                    == list(smooth_ts_out)), ("Simulation and bootstrap"
+                    == list(smooth_ts_out)), ("Simulation and bootstrap "
                                               "points do not line up!")
             boot_CI_data = reg_info['boot_plot_CIs'][ds_num]
             text += ("t " + " ".join(model.legend_names) + " "
@@ -254,8 +261,8 @@ def prepare_text(
 
 
 def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
-                  output_filename, boot_CI=95, common_y=True, no_params=False,
-                  units=None):
+                  output_filename, boot_CI=95, common_y=False, common_x=False,
+                  no_params=False, units=None):
     """Generates the output plot.
 
     Number of points must be specified. Saved as pdf to output_filename.
@@ -266,12 +273,18 @@ def generate_plot(model, reg_info, ds_num, num_points, time_exp_factor,
     dataset_params = reg_info['fit_ks'] + reg_info['fit_concs'][ds_num]
     dataset_consts = reg_info['fixed_ks'] + reg_info['fixed_concs'][ds_num]
 
-    max_time = max(reg_info['dataset_times'][ds_num])*time_exp_factor
+    # If there is to be a standardized x axis, identify the maximum time
+    # from all datasets and multiply by time_exp_factor. Otherwise, just
+    # use the maximum time from the current dataset.
+    if common_x:
+        sim_time = _max_time(reg_info['dataset_times'])*time_exp_factor
+    else:
+        sim_time = max(reg_info['dataset_times'][ds_num])*time_exp_factor
 
     smooth_ts_plot, smooth_curves_plot, _, _ = model.simulate(
             reg_info['fit_ks'] + reg_info['fixed_ks'],
             reg_info['fit_concs'][ds_num] + reg_info['fixed_concs'][ds_num],
-            num_points, max_time, integrate=False, calcs=False)
+            num_points, sim_time, integrate=False, calcs=False)
 
     if 'boot_num' in reg_info and boot_CI:
         boot_CI_plots = reg_info['boot_plot_CIs'][ds_num]
@@ -545,7 +558,8 @@ def fit_and_output(
             confidence_contour_cs=False,
             confidence_contour_include_ccplot=False,
             more_stats=False,
-            common_y=True,
+            common_y=False,
+            common_x=False,
             plot_no_params=False,
             units=None,
             simulate=True,
@@ -631,7 +645,8 @@ def fit_and_output(
                              f"_{reg_info['dataset_names'][n]}.pdf")
             generate_plot(model, reg_info, n, plot_output_points,
                           plot_time_extension_factor, plot_filename,
-                          bootstrap_CI, common_y, plot_no_params, units)
+                          bootstrap_CI, common_y, common_x,
+                          plot_no_params, units)
 
     if (type(model) is IndirectKineticModel) and simulate:
         for n in range(reg_info['num_datasets']):
